@@ -16,12 +16,15 @@ def get_git_diff(staged):
     return git_diff.stdout
 
 
+# Format the git diff into a format that can be used by the GPT-3 API
+# - add line numbers to the diff
+# - split the diff into chunks per file
 def format_git_diff(diff_text):
     diff_formatted = ""
     file_chunks = {}
     file_names = {}
 
-    # Split git diff into chunks with separator +++ line inclusive, the filename
+    # Split git diff into chunks with separator +++ line inclusive, the line with the filename
     pattern = r"(?=^(\+\+\+).*$)"
     parent_chunks = re.split(r"\n\+{3,}\s", diff_text, re.MULTILINE)
     for j, chunk in enumerate(parent_chunks, 0):
@@ -81,6 +84,7 @@ def format_git_diff(diff_text):
     return diff_formatted, file_chunks, file_names
 
 
+# return the number of tokens in a string
 def count_tokens(text):
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
     tokenized = encoding.encode(text)
@@ -210,100 +214,98 @@ def get_review_output_text(review_result):
     # Print the parsed feedback
     for filename, feedback_list in parsed_feedback.items():
         print(draw_box(filename, feedback_list))
-        # print(f"\n{filename}:")
-        # for entry in feedback_list:
-        #     print(f"- Line {entry['line']}: {entry['feedback']}")
 
 
-# Create an ArgumentParser object
-parser = argparse.ArgumentParser()
+def run():
+    # Create an ArgumentParser object
+    parser = argparse.ArgumentParser()
 
-# Add command-line arguments
-parser.add_argument("--staged", action="store_true", help="Review staged changes")
-parser.add_argument(
-    "--review", action="store_true", help="Review the changes against main"
-)
-parser.add_argument("--commit-message", action="store_true", help="Commit the changes")
+    # Add command-line arguments
+    parser.add_argument("--staged", action="store_true", help="Review staged changes")
+    parser.add_argument(
+        "--review", action="store_true", help="Review the changes against main"
+    )
+    parser.add_argument(
+        "--commit-message", action="store_true", help="Commit the changes"
+    )
 
-# Parse the command-line arguments
-args = parser.parse_args()
+    # Parse the command-line arguments
+    args = parser.parse_args()
 
-api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENAI_API_KEY")
 
-if not api_key:
-    print("OPENAI_API_KEY not found.")
-    exit()
+    if not api_key:
+        print("OPENAI_API_KEY not found.")
+        exit()
 
-diff_text = None
+    diff_text = None
 
-# Get the Git diff
-if args.review:
-    diff_text = get_git_diff(args.staged)
+    # Get the Git diff
+    if args.review:
+        diff_text = get_git_diff(args.staged)
 
-if args.commit_message:
-    diff_text = get_git_diff(True)
+    if args.commit_message:
+        diff_text = get_git_diff(True)
 
-if not diff_text:
-    print("No git changes.")
-    exit()
+    if not diff_text:
+        print("No git changes.")
+        exit()
 
-formatted_diff, diff_file_chunks, file_names = format_git_diff(diff_text)
+    formatted_diff, diff_file_chunks, file_names = format_git_diff(diff_text)
 
-# exit()
+    token_count = count_tokens(formatted_diff)
+    print(f"Token count: {token_count}")
 
-token_count = count_tokens(formatted_diff)
-print(f"Token count: {token_count}")
+    # Review the changes using OpenAI API
+    if not args or args.review:
+        review_files_separately = token_count > 1500
 
-# Review the changes using OpenAI API
-if args.review:
-    review_files_separately = token_count > 1500
-
-    if not review_files_separately and len(file_names) > 1:
-        print("Do you want to let your changed files be reviewed separately? (y/n)")
-        user_input = input()
-        if user_input == "y":
-            review_files_separately = True
-
-    # Check if the token count exceeds the limit of 1500
-    # if yes, review the files separately
-    if review_files_separately:
-        if token_count > 1500:
-            print("Your changes exceed the token limit of 1500.")
-
-        print("The Review will be splitted into multiple requests.")
-
-        for index, (key, value) in enumerate(diff_file_chunks.items()):
-            print(f"Review file {file_names[index]}? (y/n)")
+        if not review_files_separately and len(file_names) > 1:
+            print("Do you want to let your changed files be reviewed separately? (y/n)")
             user_input = input()
-            if user_input == "n":
-                continue
+            if user_input == "y":
+                review_files_separately = True
 
-            chunk_token_count = count_tokens(value)
-            if chunk_token_count > 1500:
-                print("TODO: Split file chunks into chunk of changes")
-                exit()
-            prompt = get_review_prompt(value)
+        # Check if the token count exceeds the limit of 1500
+        # if yes, review the files separately
+        if review_files_separately:
+            if token_count > 1500:
+                print("Your changes exceed the token limit of 1500.")
+
+            print("The Review will be splitted into multiple requests.")
+
+            for index, (key, value) in enumerate(diff_file_chunks.items()):
+                print(f"Review file {file_names[index]}? (y/n)")
+                user_input = input()
+                if user_input == "n":
+                    continue
+
+                chunk_token_count = count_tokens(value)
+                if chunk_token_count > 1500:
+                    print("TODO: Split file chunks into chunk of changes")
+                    exit()
+                prompt = get_review_prompt(value)
+                review_result = review_changes(api_key, prompt)
+                print("Review Result:")
+                get_review_output_text(review_result)
+
+        # Review the changes in one request
+        else:
+            prompt = get_review_prompt(formatted_diff)
             review_result = review_changes(api_key, prompt)
             print("Review Result:")
             get_review_output_text(review_result)
 
-    # Review the changes in one request
-    else:
-        prompt = get_review_prompt(formatted_diff)
+    # Create a commit message using OpenAI API
+    if args.commit_message:
+        prompt = get_commit_message_prompt(formatted_diff)
         review_result = review_changes(api_key, prompt)
-        print("Review Result:")
-        get_review_output_text(review_result)
+        print("Commit Message:")
+        print(review_result)
+        print("Do you want to commit the changes? (y/n)")
+        user_input = input()
 
-# Create a commit message using OpenAI API
-if args.commit_message:
-    prompt = get_commit_message_prompt(formatted_diff)
-    review_result = review_changes(api_key, prompt)
-    print("Commit Message:")
-    print(review_result)
-    print("Do you want to commit the changes? (y/n)")
-    user_input = input()
-
-    if user_input == "y":
-        # Commit the changes
-        commit_command = ["git", "commit", "-m", review_result]
-        git_commit = subprocess.run(commit_command, capture_output=True, text=True)
+        if user_input == "y":
+            # Commit the changes
+            commit_command = ["git", "commit", "-m", review_result]
+            git_commit = subprocess.run(commit_command, capture_output=True, text=True)
