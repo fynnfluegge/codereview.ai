@@ -1,4 +1,4 @@
-from reviewbuddy_gpt import app
+from gitreview_gpt import app
 
 
 def main():

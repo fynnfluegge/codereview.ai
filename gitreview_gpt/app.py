@@ -101,7 +101,7 @@ def get_commit_message_prompt(diff_text):
         "messages": [
             {
                 "role": "user",
-                "content": "Here are my code changes. Could you please create a commit message for me?",
+                "content": "Here are my code changes. Could you please create a short and precise commit message for me?",
             },
             {
                 "role": "assistant",
@@ -141,12 +141,13 @@ def get_review_prompt(diff_text):
     }
 
 
-def review_changes(api_key, payload):
+def send_request(api_key, payload, spinner_text):
     # Convert payload to JSON string
     payload_json = json.dumps(payload).replace("'", r"'\''")
 
+    # create spinner
     spinner = yaspin()
-    spinner.text = "Reviewing the changes..."
+    spinner.text = spinner_text
     spinner.start()
 
     # Prepare the curl command
@@ -157,7 +158,9 @@ def review_changes(api_key, payload):
         curl_command, shell=True, capture_output=True, text=True
     )
 
+    # stop spinner
     spinner.stop()
+
     # Process the response
     if curl_output.returncode == 0:
         json_response = json.loads(curl_output.stdout)
@@ -220,14 +223,12 @@ def run():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser()
 
-    # Add command-line arguments
+    parser.add_argument(
+        "action",
+        choices=["review", "commit"],
+        help="Review changes against main branch (review) or create commit message (commit)",
+    )
     parser.add_argument("--staged", action="store_true", help="Review staged changes")
-    parser.add_argument(
-        "--review", action="store_true", help="Review the changes against main"
-    )
-    parser.add_argument(
-        "--commit-message", action="store_true", help="Commit the changes"
-    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -238,13 +239,16 @@ def run():
         print("OPENAI_API_KEY not found.")
         exit()
 
+    if not args.action:
+        exit()
+
     diff_text = None
 
     # Get the Git diff
-    if args.review:
+    if args.action == "review":
         diff_text = get_git_diff(args.staged)
 
-    if args.commit_message:
+    if args.action == "commit":
         diff_text = get_git_diff(True)
 
     if not diff_text:
@@ -254,10 +258,9 @@ def run():
     formatted_diff, diff_file_chunks, file_names = format_git_diff(diff_text)
 
     token_count = count_tokens(formatted_diff)
-    print(f"Token count: {token_count}")
 
     # Review the changes using OpenAI API
-    if not args or args.review:
+    if args.action == "review":
         review_files_separately = token_count > 1500
 
         if not review_files_separately and len(file_names) > 1:
@@ -282,25 +285,27 @@ def run():
 
                 chunk_token_count = count_tokens(value)
                 if chunk_token_count > 1500:
-                    print("TODO: Split file chunks into chunk of changes")
+                    print(
+                        "TODO: token count exceeds 1500. Split file chunks into chunk of changes"
+                    )
                     exit()
                 prompt = get_review_prompt(value)
-                review_result = review_changes(api_key, prompt)
-                print("Review Result:")
+                review_result = send_request(api_key, prompt, "Reviewing...")
+                print("✨ Review Result ✨")
                 get_review_output_text(review_result)
 
         # Review the changes in one request
         else:
             prompt = get_review_prompt(formatted_diff)
-            review_result = review_changes(api_key, prompt)
-            print("Review Result:")
+            review_result = send_request(api_key, prompt, "Reviewing...")
+            print("✨ Review Result ✨")
             get_review_output_text(review_result)
 
     # Create a commit message using OpenAI API
-    if args.commit_message:
+    if args.action == "commit":
         prompt = get_commit_message_prompt(formatted_diff)
-        review_result = review_changes(api_key, prompt)
-        print("Commit Message:")
+        review_result = send_request(api_key, prompt, "Creating commit message...")
+        print("✨ Commit Message ✨")
         print(review_result)
         print("Do you want to commit the changes? (y/n)")
         user_input = input()
