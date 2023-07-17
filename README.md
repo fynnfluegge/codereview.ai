@@ -12,7 +12,7 @@
 ## 🚀 Usage
 
 - `rgpt review`: Let ChatGPT 3.5 review all your changes against the `main` branch
-- `rgpt review staged`: Let ChatGPT 3.5 review all your staged changes
+- `rgpt review --staged`: Let ChatGPT 3.5 review all your staged changes
 - `rgpt commit`: Let ChatGPT 3.5 create a commit message for sour staged changes
 
 ## 📋 Requirements
