@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "reviewbuddy-gpt"
+name = "gitreview-gpt"
 version = "0.1.0"
 description = ""
 authors = ["fynnfluegge <fynnfluegge@gmx.de>"]
 readme = "README.md"
-packages = [{ include = "reviewbuddy_gpt" }]
+packages = [{ include = "gitreview_gpt" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -12,7 +12,7 @@ tiktoken = "^0.4.0"
 yaspin = "^2.3.0"
 
 [tool.poetry.scripts]
-rbuddy = "reviewbuddy_gpt.__main__:main"
+rgpt = "gitreview_gpt.__main__:main"
 
 [build-system]
 requires = ["poetry-core"]
