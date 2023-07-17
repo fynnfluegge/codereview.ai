@@ -2,24 +2,29 @@
 
 `gitreview-gpt` reviews your git changes with ChatGPT 3.5 from command line and provides detailed review comments with line number references.
 
-✨ Features
+## ✨ Features
 
-- Reviews all your committed changes against the main branch
-- Reviews your staged changes only
-- Reviews your changed files separately
-- Creates a commit message for your changes
+- **Reviews all your committed changes against the main branch**
+- **Reviews your staged changes only**
+- **Reviews your changed files separately**
+- **Creates a commit message for your changes**
 
-🚀 Usage
+## 🚀 Usage
 
 - `rgpt review`: Let ChatGPT 3.5 review all your changes against the `main` branch
 - `rgpt review staged`: Let ChatGPT 3.5 review all your staged changes
 - `rgpt commit`: Let ChatGPT 3.5 create a commit message for sour staged changes
 
-📋 Requirements
+## 📋 Requirements
 
 - Python >= 3.11
 
-🔧 Installation
-
-- Get your personal OpenAI Api key
-- Install `gitreview-gpt` with `pipx`
+## 🔧 Installation
+#### Create your personal OpenAI Api key and add it to your environment with:
+```
+export OPENAI_API_KEY=<YOUR_API_KEY>
+ ```
+#### Install `gitreview-gpt` with `pipx`:
+```
+Install
+``` 
