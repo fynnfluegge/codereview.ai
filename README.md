@@ -11,20 +11,24 @@
 
 ## 🚀 Usage
 
-- `rgpt review`: Let ChatGPT 3.5 review all your changes against the `main` branch
-- `rgpt review --staged`: Let ChatGPT 3.5 review all your staged changes
-- `rgpt commit`: Let ChatGPT 3.5 create a commit message for sour staged changes
+- `rgpt review`: Reviews all your changes against the `main` branch
+- `rgpt review --staged`: Reviews all your staged changes
+- `rgpt commit`: Creates a commit message for your staged changes
 
 ## 📋 Requirements
 
 - Python >= 3.11
 
 ## 🔧 Installation
+
 #### Create your personal OpenAI Api key and add it to your environment with:
+
 ```
 export OPENAI_API_KEY=<YOUR_API_KEY>
- ```
-#### Install `gitreview-gpt` with `pipx`:
 ```
-Install
-``` 
+
+#### Install `gitreview-gpt` with `pipx`:
+
+```
+pipx install git+https://github.com/fynnfluegge/gitreview-gpt.git
+```
