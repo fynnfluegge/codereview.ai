@@ -4,7 +4,7 @@
 Your `git diff` is extensively parsed to a well comprehensible format for the `gpt-3.5-turbo` completion api to get precise feedback based on your code changes.
 
 
-![ezgif-5-cf7e3d5d47](https://github.com/fynnfluegge/gitreview-gpt/assets/16321871/80852b6a-020e-45aa-88d7-edc5544cac26)
+![ezgif-5-956a1609ab](https://github.com/fynnfluegge/gitreview-gpt/assets/16321871/ce68fb34-2748-4929-aaaa-b2a1271301a5)
 
 
 ## ✨ Features
