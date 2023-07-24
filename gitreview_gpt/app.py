@@ -8,9 +8,13 @@ import re
 from yaspin import yaspin
 
 
-def get_git_diff(staged):
+def get_git_diff(staged, branch):
     # Run git diff command and capture the output
-    command = ["git", "diff", "--cached"] if staged else ["git", "diff", "main..."]
+    if not branch:
+        command = ["git", "diff", "--cached"] if staged else ["git", "diff", "HEAD"]
+    else:
+        command = ["git", "diff", branch]
+
     git_diff = subprocess.run(command, capture_output=True, text=True)
 
     return git_diff.stdout
@@ -229,6 +233,9 @@ def run():
         help="Review changes against main branch (review) or create commit message (commit)",
     )
     parser.add_argument("--staged", action="store_true", help="Review staged changes")
+    parser.add_argument(
+        "--branch", type=str, help="Review changes against a specific branch"
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -246,13 +253,16 @@ def run():
 
     # Get the Git diff
     if args.action == "review":
-        diff_text = get_git_diff(args.staged)
+        diff_text = get_git_diff(args.staged, args.branch)
 
     if args.action == "commit":
-        diff_text = get_git_diff(True)
+        diff_text = get_git_diff(True, None)
 
     if not diff_text:
-        print("No git changes.")
+        if not args.staged:
+            print("No staged git changes.")
+        else:
+            print("No git changes.")
         exit()
 
     formatted_diff, diff_file_chunks, file_names = format_git_diff(diff_text)
@@ -291,6 +301,7 @@ def run():
                     exit()
                 prompt = get_review_prompt(value)
                 review_result = send_request(api_key, prompt, "Reviewing...")
+                # TODO send repair request if review result has bad wrong format
                 print("✨ Review Result ✨")
                 get_review_output_text(review_result)
 
@@ -298,6 +309,7 @@ def run():
         else:
             prompt = get_review_prompt(formatted_diff)
             review_result = send_request(api_key, prompt, "Reviewing...")
+            # TODO send repair request if review result has bad format
             print("✨ Review Result ✨")
             get_review_output_text(review_result)
 
