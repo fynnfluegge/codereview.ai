@@ -8,9 +8,13 @@ import re
 from yaspin import yaspin
 
 
-def get_git_diff(staged):
+def get_git_diff(staged, branch):
     # Run git diff command and capture the output
-    command = ["git", "diff", "--cached"] if staged else ["git", "diff", "main..."]
+    if not branch:
+        command = ["git", "diff", "--cached"] if staged else ["git", "diff", "HEAD"]
+    else:
+        command = ["git", "diff", branch]
+
     git_diff = subprocess.run(command, capture_output=True, text=True)
 
     return git_diff.stdout
@@ -81,6 +85,7 @@ def format_git_diff(diff_text):
 
             file_chunks[j] += chunk_formatted
 
+    # TODO remove lines with pattern @@ -n,n +n,n @@ from diff_formatted and file_chunks
     return diff_formatted, file_chunks, file_names
 
 
@@ -125,13 +130,14 @@ def get_review_prompt(diff_text):
         "messages": [
             {
                 "role": "user",
-                "content": "You are a code reviewer. Here are my code changes. You should review them and provide feedback. "
+                "content": "You are a code reviewer. You should review my code changes and provide feedback. "
                 + "Provide feeback on how to improve the code. Provide feedback on potential bugs. "
-                + "Provide feedback in the following format: $$$filename:lines:$$$feedback. For example, $$$main.py:10:$$$This line of code is not required. ",
+                + "You will get my changes with line numbers at the start of each line. "
+                + "Provide feedback in the following format: $$$filename:line_numbers:$$$feedback. For example, $$$main.py:10:$$$This line of code is not required.",
             },
             {
                 "role": "assistant",
-                "content": "Sure! I'll be happy to help. Please share the code changes you made.",
+                "content": "Sure! Please share the code changes you made.",
             },
             {
                 "role": "user",
@@ -226,9 +232,12 @@ def run():
     parser.add_argument(
         "action",
         choices=["review", "commit"],
-        help="Review changes against main branch (review) or create commit message (commit)",
+        help="Review changes (review) or create commit message (commit)",
     )
     parser.add_argument("--staged", action="store_true", help="Review staged changes")
+    parser.add_argument(
+        "--branch", type=str, help="Review changes against a specific branch"
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -246,13 +255,16 @@ def run():
 
     # Get the Git diff
     if args.action == "review":
-        diff_text = get_git_diff(args.staged)
+        diff_text = get_git_diff(args.staged, args.branch)
 
     if args.action == "commit":
-        diff_text = get_git_diff(True)
+        diff_text = get_git_diff(True, None)
 
     if not diff_text:
-        print("No git changes.")
+        if not args.staged:
+            print("No staged git changes.")
+        else:
+            print("No git changes.")
         exit()
 
     formatted_diff, diff_file_chunks, file_names = format_git_diff(diff_text)
@@ -291,6 +303,7 @@ def run():
                     exit()
                 prompt = get_review_prompt(value)
                 review_result = send_request(api_key, prompt, "Reviewing...")
+                # TODO send repair request if review result has bad format
                 print("✨ Review Result ✨")
                 get_review_output_text(review_result)
 
@@ -298,6 +311,7 @@ def run():
         else:
             prompt = get_review_prompt(formatted_diff)
             review_result = send_request(api_key, prompt, "Reviewing...")
+            # TODO send repair request if review result has bad format
             print("✨ Review Result ✨")
             get_review_output_text(review_result)
 
@@ -313,4 +327,4 @@ def run():
         if user_input == "y":
             # Commit the changes
             commit_command = ["git", "commit", "-m", review_result]
-            git_commit = subprocess.run(commit_command, capture_output=True, text=True)
+            subprocess.run(commit_command, capture_output=True, text=True)

@@ -16,9 +16,10 @@ Your `git diff` is extensively parsed to a well comprehensible format for the `g
 
 ## 🚀 Usage
 
-- `rgpt review`: Reviews all your changes against the `main` branch
-- `rgpt review --staged`: Reviews all your staged changes
-- `rgpt commit`: Creates a commit message for your staged changes
+- `rgpt review`: Reviews all changes in your working directory (`git diff HEAD`).
+- `rgpt review --staged`: Reviews all staged changes in your working directory.
+- `rgpt review --target orgin/main`: Reviews all committed changes in your current branch compared to `origin/main`.
+- `rgpt commit`: Creates a commit message for your staged changes.
 
 ## 📋 Requirements
 
