@@ -85,6 +85,7 @@ def format_git_diff(diff_text):
 
             file_chunks[j] += chunk_formatted
 
+    # TODO remove lines with pattern @@ -n,n +n,n @@ from diff_formatted and file_chunks
     return diff_formatted, file_chunks, file_names
 
 
@@ -129,13 +130,14 @@ def get_review_prompt(diff_text):
         "messages": [
             {
                 "role": "user",
-                "content": "You are a code reviewer. Here are my code changes. You should review them and provide feedback. "
+                "content": "You are a code reviewer. You should review my code changes and provide feedback. "
                 + "Provide feeback on how to improve the code. Provide feedback on potential bugs. "
-                + "Provide feedback in the following format: $$$filename:lines:$$$feedback. For example, $$$main.py:10:$$$This line of code is not required. ",
+                + "You will get my changes with line numbers at the start of each line. "
+                + "Provide feedback in the following format: $$$filename:line_numbers:$$$feedback. For example, $$$main.py:10:$$$This line of code is not required.",
             },
             {
                 "role": "assistant",
-                "content": "Sure! I'll be happy to help. Please share the code changes you made.",
+                "content": "Sure! Please share the code changes you made.",
             },
             {
                 "role": "user",
@@ -230,7 +232,7 @@ def run():
     parser.add_argument(
         "action",
         choices=["review", "commit"],
-        help="Review changes against main branch (review) or create commit message (commit)",
+        help="Review changes (review) or create commit message (commit)",
     )
     parser.add_argument("--staged", action="store_true", help="Review staged changes")
     parser.add_argument(
@@ -301,7 +303,7 @@ def run():
                     exit()
                 prompt = get_review_prompt(value)
                 review_result = send_request(api_key, prompt, "Reviewing...")
-                # TODO send repair request if review result has bad wrong format
+                # TODO send repair request if review result has bad format
                 print("✨ Review Result ✨")
                 get_review_output_text(review_result)
 
@@ -325,4 +327,4 @@ def run():
         if user_input == "y":
             # Commit the changes
             commit_command = ["git", "commit", "-m", review_result]
-            git_commit = subprocess.run(commit_command, capture_output=True, text=True)
+            subprocess.run(commit_command, capture_output=True, text=True)
