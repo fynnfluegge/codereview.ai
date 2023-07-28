@@ -36,5 +36,8 @@ export OPENAI_API_KEY=<YOUR_API_KEY>
 Install with `pipx`:
 
 ```
-pipx install git+https://github.com/fynnfluegge/gitreview-gpt.git
+pipx install gitreview-gpt
 ```
+
+> [!NOTE]
+> It is recommended to use `pipx` for installation, nonetheless it is also possible to use `pip`
