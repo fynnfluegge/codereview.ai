@@ -23,7 +23,7 @@ Your `git diff` is extensively parsed to a well comprehensible format for the `g
 
 ## 📋 Requirements
 
-- Python >= 3.11
+- Python >= 3.8
 
 ## 🔧 Installation
 
