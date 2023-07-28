@@ -7,18 +7,18 @@ Your `git diff` is extensively parsed to a well comprehensible format for the `g
 
 ## ✨ Features
 
-- **Get feedback and suggestions with the corresponding line numbers to your changes**
-- **Review all changes in your workiung directory**
-- **Review your staged changes only**
-- **Review all your committed changes against the main branch**
-- **Review your changed files all at once or separately**
-- **Create a commit message for your changes**
+- **Get feedback and suggestions with the corresponding line numbers to git changes**
+- **Reviews all changes in the working directory**
+- **Reviews only staged changes**
+- **Reviews all committed changes against a specific branch**
+- **Reviews all modified files at once or separately**
+- **Creates a commit message for your changes**
 
 ## 🚀 Usage
 
 - `rgpt review`: Reviews all changes in your working directory.
 - `rgpt review --staged`: Reviews all staged changes in your working directory.
-- `rgpt review --target <BRANCH_NAME>`: Reviews all committed changes in your current branch compared to `<BRANCH_NAME>`.
+- `rgpt review --target $BRANCH`: Reviews all committed changes in your current branch compared to `$BRANCH`.
 - `rgpt commit`: Creates a commit message for your staged changes.
 
 ## 📋 Requirements
