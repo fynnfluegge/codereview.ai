@@ -36,7 +36,6 @@ def get_review_prompt(git_diff_text):
                 + "Provide feeback on how to improve the code. Provide feedback on potential bugs. "
                 + "You will get my changes with line numbers at the start of each line. "
                 + "Provide feedback as a json object with the following format: "
-                # + '{"filename":{"line_number":{"feedback":"your feedback.","suggestion":"your suggestion."},}}'
                 + '{"filename":{"line_number":{"feedback: your feedback."},}}',
             },
             {

@@ -33,7 +33,6 @@ def count_tokens(text):
 def send_request(api_key, payload, spinner_text):
     # Convert payload to JSON string
     payload_json = json.dumps(payload).replace("'", r"'\''")
-    # TODO also replace " ?
 
     # Create spinner
     spinner = yaspin()
@@ -70,7 +69,6 @@ def send_request(api_key, payload, spinner_text):
 def request_review(api_key, code_to_review):
     payload = prompt.get_review_prompt(code_to_review)
     review_result = send_request(api_key, payload, "Reviewing...")
-    print(review_result + "\n")
     try:
         get_review_output_from_response_json(review_result)
     except ValueError as e:
