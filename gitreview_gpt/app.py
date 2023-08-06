@@ -3,7 +3,6 @@ import subprocess
 import json
 import tiktoken
 import argparse
-import re
 import gitreview_gpt.prompt as prompt
 import gitreview_gpt.formatter as formatter
 from yaspin import yaspin
@@ -70,26 +69,73 @@ def request_review(api_key, code_to_review):
     payload = prompt.get_review_prompt(code_to_review)
     review_result = send_request(api_key, payload, "Reviewing...")
     try:
-        get_review_output_from_response_json(review_result)
-    except ValueError as e:
-        print("Review result has bad format. It will be repaired.")
-        payload = prompt.get_review_repair_prompt(review_result, e)
-        review_result = send_request(api_key, payload, "Repairing...")
-        print(review_result + "\n")
-        pattern = r"json\s*({[^`]+})\s*"
-        match = re.search(pattern, review_result, re.DOTALL)
-        if match:
-            get_review_output_from_response_json(match.group(1))
-        else:
-            get_review_output_from_response_json(review_result)
+        review_json = formatter.parse_review_result(review_result)
+    except ValueError:
+        print(review_result)
+        try:
+            review_json = formatter.parse_repair_review(review_result)
+        except ValueError as e:
+            print("Review result has invalid format. It will be repaired.")
+            payload = prompt.get_review_repair_prompt(review_result, e)
+            review_result = send_request(api_key, payload, "Repairing...")
+            review_json = formatter.parse_repair_review(review_result)
+
+    print_review_from_response_json(review_json)
+    return review_json
+
+
+# Retrieve code changes from openai completions api
+# for one specific file with the related review
+def request_review_changes(
+    api_key,
+    file_path,
+    review_json,
+    file_diff,
+    code_change_chunks,
+):
+    try:
+        with open(file_path, "r") as file:
+            content = file.read()
+            file_lines = file.readlines()
+            encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+            tokens = len(encoding.encode(file_diff + "\n" + json.dumps(review_json)))
+            # Create a stack from the review suggestions line numbers
+            line_number_stack = []
+            for line_number in reversed(review_json.keys()):
+                line_number_stack.append(int(line_number))
+            # Split requests into changes chunks by selection markers
+            payload = []
+            if tokens > 1500:
+                pass
+            # Do review changes in one request
+            else:
+                for code_changes in code_change_chunks.values():
+                    print(code_changes)
+                    if not line_number_stack:
+                        break
+                    payload.append(
+                        formatter.parse_apply_review_per_code_hunk(
+                            code_changes,
+                            review_json,
+                            line_number_stack,
+                        )
+                    )
+            # TODO send review changes request
+            # TODO apply reivew changes to file
+            print(payload)
+
+    except FileNotFoundError:
+        print(f"File '{file_path}' not found.")
+    except IOError:
+        print(f"Error reading file '{file_path}'.")
+    return None
 
 
 # Process response json and draw output to console
-def get_review_output_from_response_json(feedback_json):
-    feedback = json.loads(feedback_json)
+def print_review_from_response_json(feedback_json):
     print("✨ Review Result ✨")
-    for file in feedback:
-        print(formatter.draw_box(file, feedback[file]))
+    for file in feedback_json:
+        print(formatter.draw_box(file, feedback_json[file]))
 
 
 def run():
@@ -134,9 +180,17 @@ def run():
             print("No git changes.")
         exit()
 
-    formatted_diff, diff_file_chunks, file_names = formatter.format_git_diff(diff_text)
-
+    (
+        formatted_diff,
+        diff_file_chunks,
+        code_change_chunks,
+        file_names,
+        file_paths,
+    ) = formatter.format_git_diff(diff_text)
     token_count = count_tokens(formatted_diff)
+    git_root = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], universal_newlines=True
+    ).strip()
 
     # Review the changes using OpenAI API
     if args.action == "review":
@@ -156,8 +210,8 @@ def run():
 
             print("The Review will be splitted into multiple requests.")
 
-            for index, (key, value) in enumerate(diff_file_chunks.items()):
-                print(f"Review file {file_names[index]}? (y/n)")
+            for index, value in enumerate(diff_file_chunks.values()):
+                print(f"Review file \033[01m{file_names[index]}\033[0m? (y/n)")
                 user_input = input()
                 if user_input == "n":
                     continue
@@ -168,7 +222,15 @@ def run():
                         "TODO: token count exceeds 1500. Split file chunks into chunk of changes"
                     )
                     exit()
-                request_review(api_key, value)
+                review_result = request_review(api_key, value)
+                if review_result is not None:
+                    request_review_changes(
+                        api_key,
+                        git_root + "/" + file_paths[index],
+                        review_result[file_names[index]],
+                        value,
+                        code_change_chunks[index],
+                    )
 
         # Review the changes in one request
         else:
