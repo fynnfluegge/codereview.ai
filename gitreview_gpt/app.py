@@ -110,16 +110,16 @@ def request_review_changes(
             # Do review changes in one request
             else:
                 for code_changes in code_change_chunks.values():
-                    print(code_changes)
                     if not line_number_stack:
                         break
-                    payload.append(
-                        formatter.parse_apply_review_per_code_hunk(
-                            code_changes,
-                            review_json,
-                            line_number_stack,
-                        )
+                    # TODO separate code changes and reviews
+                    code_changes_payload = formatter.parse_apply_review_per_code_hunk(
+                        code_changes,
+                        review_json,
+                        line_number_stack,
                     )
+                    if code_changes_payload:
+                        payload.append(code_changes_payload)
             # TODO send review changes request
             # TODO apply reivew changes to file
             print(payload)
