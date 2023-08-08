@@ -8,11 +8,11 @@ def get_commit_message_prompt(git_diff_text):
         "messages": [
             {
                 "role": "user",
-                "content": "Here are my code changes. Could you please create a short and precise commit message for me?",
+                "content": "Here are my code changes. Provide a commit message for my changes. Provide only the commit message in your response.",
             },
             {
                 "role": "assistant",
-                "content": "Sure! I'll be happy to help. Please share the code changes you made.",
+                "content": "Sure! Please share the code changes you made.",
             },
             {
                 "role": "user",
