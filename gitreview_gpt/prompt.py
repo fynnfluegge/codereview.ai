@@ -78,10 +78,10 @@ def get_review_repair_prompt(invalid_json, error):
     }
 
 
-def get_apply_review_prompt(code_changes_with_suggestions):
+def get_apply_review_prompt(code_changes_with_suggestions, max_tokens):
     return {
         "model": "gpt-3.5-turbo",
-        "max_tokens": 1096,
+        "max_tokens": max_tokens,
         "temperature": 0.5,
         "n": 1,
         "stop": None,
@@ -90,8 +90,8 @@ def get_apply_review_prompt(code_changes_with_suggestions):
                 "role": "user",
                 "content": "I have a file containing python code and code reviews as a json object in the following format: "
                 + '{"code":"the python code", "reviews": { "line_number": "review" }}'
-                + "You should apply the review to the code. "
-                + "Provide the code with the review applied.",
+                + "You should apply the reviews to the code. "
+                + "Provide the code with the applied reviews in your response.",
             },
             {
                 "role": "assistant",

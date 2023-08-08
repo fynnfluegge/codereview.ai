@@ -52,6 +52,7 @@ def send_request(api_key, payload, spinner_text):
     # Process the response
     if curl_output.returncode == 0:
         json_response = json.loads(curl_output.stdout)
+        print(json_response)
         try:
             reviewSummary = (
                 json_response["choices"][0]["message"]["content"]
@@ -104,28 +105,35 @@ def apply_review_changes(
             file_lines = file.readlines()
             encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
             # Count tokens of file and review json
-            tokens = len(encoding.encode(content + "\n" + json.dumps(review_json)))
+            # tokens = len(encoding.encode(content + "\n" + json.dumps(review_json)))
+            # max_completions_tokens = 4096 - tokens
             # Split requests into changes chunks by selection markers
-            if tokens > 3000:
-                print(
-                    f"{file_name} is too large. Applying review changes will be skipped for that file."
-                )
+            # if tokens > 3000:
+            # print(
+            #     f"{file_name} is too large. Applying review changes will be skipped for that file."
+            # )
             # Do review changes in one request
-            else:
-                payload = {
-                    "code": content,
-                    "reviews": formatter.get_review_suggestions_per_file_payload_from_json(
-                        review_json
-                    ),
-                }
-                reviewed_code = send_request(
-                    api_key,
-                    prompt.get_apply_review_prompt(json.dumps(payload)),
-                    "Applying changes...",
-                )
-                file.write(
-                    formatter.extract_content_from_markdown_code_block(reviewed_code)
-                )
+            # else:
+            payload = {
+                "code": content,
+                "reviews": formatter.get_review_suggestions_per_file_payload_from_json(
+                    review_json
+                ),
+            }
+            prompt_payload = prompt.get_apply_review_prompt(json.dumps(payload), 4096)
+            tokens = count_tokens(json.dumps(prompt_payload))
+            max_completions_tokens = 4096 - tokens
+            reviewed_code = send_request(
+                api_key,
+                prompt.get_apply_review_prompt(
+                    json.dumps(payload), max_completions_tokens
+                ),
+                "Applying changes...",
+            )
+            print(reviewed_code)
+            # file.write(
+            # formatter.extract_content_from_markdown_code_block(reviewed_code)
+            # )
 
     except FileNotFoundError:
         print(f"File '{file_path}' not found.")
@@ -227,7 +235,6 @@ def run():
                     )
                     exit()
                 review_result = request_review(api_key, value)
-                print(review_result)
                 if review_result is not None:
                     apply_review_changes(
                         api_key,
