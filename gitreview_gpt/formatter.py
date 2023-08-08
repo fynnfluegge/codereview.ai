@@ -110,13 +110,13 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
     return diff_formatted, file_chunks, code_change_chunks, file_names, file_paths
 
 
-def parse_repair_review(review_result):
-    pattern = r"json\s+(.*?)\s+"
-    match = re.search(pattern, review_result, re.DOTALL)
+def extract_content_from_markdown_code_block(markdown_code_block):
+    pattern = r"```(?:[a-zA-Z0-9]+)?\n(.*?)```"
+    match = re.search(pattern, markdown_code_block, re.DOTALL)
     if match:
-        return json.loads(match.group(1))
+        return match.group(1).strip()
     else:
-        return json.loads(review_result)
+        return markdown_code_block.strip()
 
 
 def parse_review_result(review_result):
@@ -124,7 +124,7 @@ def parse_review_result(review_result):
 
 
 def remove_unused_suggestions(review_result):
-    # Function to check if feedback contains "not used" or "unused"
+    # Function to check if feedback contains "not used" or "unused" etc
     def has_not_used_or_unused(feedback):
         return (
             "not used" in feedback.lower()
@@ -173,10 +173,18 @@ def draw_box(filename, feedback_lines):
     return "\n".join(result)
 
 
+def get_review_suggestions_per_file_payload_from_json(review_json):
+    suggestions = {}
+    for line in review_json:
+        suggestions[line] = review_json[line]["feedback"]
+        if "suggestion" in review_json[line]:
+            suggestions[line] += " " + review_json[line]["suggestion"]
+    return suggestions
+
+
 def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stack):
     line_number = line_number_stack.pop()
     hunk_review_payload = []
-    # print(review_json)
     for code_change_hunk in code_changes:
         review_per_chunk = {}
         while (
@@ -191,9 +199,11 @@ def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stac
             line_number = line_number_stack.pop()
 
         if review_per_chunk:
-            # print(review_per_chunk)
+            suggestions = {}
+            for line in review_per_chunk:
+                suggestions[line] = review_per_chunk[line]["feedback"]
             hunk_review_payload.append(
-                code_change_hunk.code + "\n" + json.dumps(review_per_chunk) + "\n"
+                {"code": code_change_hunk.code, "suggestions": suggestions}
             )
 
         if not line_number_stack:
