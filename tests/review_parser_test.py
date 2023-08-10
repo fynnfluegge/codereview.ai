@@ -122,6 +122,12 @@ class TestReviewParser(unittest.TestCase):
             + "    print('Hello World!')\n"
             + "```\n"
         )
+        self.git_diff = (
+            "Here is the git diff for the code changes based on the provided reviews:\n"
+            + "```diff\n"
+            + "diff --git a/README.md b/README.md\n"
+            + "```"
+        )
 
     def test_parse_apply_review_per_code_hunk(self):
         line_numbers = [232, 226, 225, 215]
@@ -140,6 +146,7 @@ class TestReviewParser(unittest.TestCase):
         python_content = formatter.extract_content_from_markdown_code_block(
             self.string_with_python_markdown_code_block
         )
+        git_diff = formatter.extract_content_from_markdown_code_block(self.git_diff)
         self.assertEqual(
             content,
             "def run():\n" + "    print('Hello World!')",
@@ -148,3 +155,4 @@ class TestReviewParser(unittest.TestCase):
             python_content,
             "def run():\n" + "    print('Hello World!')",
         )
+        self.assertEqual(git_diff, "diff --git a/README.md b/README.md")

@@ -160,7 +160,8 @@ def draw_box(filename, feedback_lines):
             f"◇ \033[01mLine {entry}\033[0m: {feedback_lines[entry]['feedback']}"
         )
         if "suggestion" in feedback_lines[entry]:
-            line_string += f" {feedback_lines[entry]['suggestion']}"
+            if feedback_lines[entry]["suggestion"] is not None:
+                line_string += f" {feedback_lines[entry]['suggestion']}"
         if len(line_string) > max_length - 2:
             wrapped_lines = textwrap.wrap(line_string, width=max_length - 4)
             result.append("│ " + wrapped_lines[0].ljust(max_length + 7) + " │")
@@ -178,7 +179,8 @@ def get_review_suggestions_per_file_payload_from_json(review_json):
     for line in review_json:
         suggestions[line] = review_json[line]["feedback"]
         if "suggestion" in review_json[line]:
-            suggestions[line] += " " + review_json[line]["suggestion"]
+            if review_json[line]["suggestion"] is not None:
+                suggestions[line] += " " + review_json[line]["suggestion"]
     return suggestions
 
 

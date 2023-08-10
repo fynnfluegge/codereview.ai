@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gitreview-gpt"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["fynnfluegge <fynnfluegge@gmx.de>"]
 readme = "README.md"

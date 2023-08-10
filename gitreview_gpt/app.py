@@ -6,6 +6,7 @@ import argparse
 import gitreview_gpt.prompt as prompt
 import gitreview_gpt.formatter as formatter
 from yaspin import yaspin
+from typing import Dict, Any
 
 
 # Return the code changes as a git diff
@@ -52,7 +53,6 @@ def send_request(api_key, payload, spinner_text):
     # Process the response
     if curl_output.returncode == 0:
         json_response = json.loads(curl_output.stdout)
-        print(json_response)
         try:
             reviewSummary = (
                 json_response["choices"][0]["message"]["content"]
@@ -69,22 +69,27 @@ def send_request(api_key, payload, spinner_text):
 
 # Retrieve review from openai completions api
 # Process response and send repair request if json has invalid format
-def request_review(api_key, code_to_review):
-    payload = prompt.get_review_prompt(code_to_review)
+def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
+    max_tokens = 4096 - count_tokens(
+        json.dumps(prompt.get_review_prompt(code_to_review, 4096))
+    )
+    payload = prompt.get_review_prompt(code_to_review, max_tokens)
     review_result = send_request(api_key, payload, "Reviewing...")
+    if not review_result:
+        return None
     try:
         review_json = formatter.parse_review_result(review_result)
     except ValueError:
         try:
-            review_json = formatter.extract_content_from_markdown_code_block(
-                review_result
+            review_json = formatter.parse_review_result(
+                formatter.extract_content_from_markdown_code_block(review_result)
             )
         except ValueError as e:
             print("Review result has invalid format. It will be repaired.")
-            payload = prompt.get_review_repair_prompt(review_result, e)
+            payload = prompt.get_review_repair_prompt(review_result, e, max_tokens)
             review_result = send_request(api_key, payload, "Repairing...")
-            review_json = formatter.extract_content_from_markdown_code_block(
-                review_result
+            review_json = formatter.parse_review_result(
+                formatter.extract_content_from_markdown_code_block(review_result)
             )
 
     print_review_from_response_json(review_json)
@@ -96,49 +101,92 @@ def request_review(api_key, code_to_review):
 def apply_review_changes(
     api_key,
     file_path,
-    file_name,
     review_json,
+    git_diff_chunks=None,
 ):
     try:
+        reviewed_git_diff = None
         with open(file_path, "r") as file:
             content = file.read()
-            file_lines = file.readlines()
-            encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
-            # Count tokens of file and review json
-            # tokens = len(encoding.encode(content + "\n" + json.dumps(review_json)))
-            # max_completions_tokens = 4096 - tokens
-            # Split requests into changes chunks by selection markers
-            # if tokens > 3000:
-            # print(
-            #     f"{file_name} is too large. Applying review changes will be skipped for that file."
-            # )
-            # Do review changes in one request
-            # else:
             payload = {
                 "code": content,
                 "reviews": formatter.get_review_suggestions_per_file_payload_from_json(
                     review_json
                 ),
             }
-            prompt_payload = prompt.get_apply_review_prompt(json.dumps(payload), 4096)
+            prompt_payload = prompt.get_apply_review_prompt(
+                content, json.dumps(payload["reviews"]), 4096
+            )
             tokens = count_tokens(json.dumps(prompt_payload))
             max_completions_tokens = 4096 - tokens
-            reviewed_code = send_request(
-                api_key,
-                prompt.get_apply_review_prompt(
-                    json.dumps(payload), max_completions_tokens
-                ),
-                "Applying changes...",
-            )
-            print(reviewed_code)
-            # file.write(
-            # formatter.extract_content_from_markdown_code_block(reviewed_code)
-            # )
+            print(f"Tokens: {tokens}")
+            if tokens > 2048 and git_diff_chunks is not None:
+                line_number_stack = []
+                for line_number in reversed(review_json.keys()):
+                    line_number_stack.append(int(line_number))
+                # Split requests into changes chunks by selection markers
+                payload = []
+                for git_chunk in git_diff_chunks.values():
+                    print(git_chunk)
+                    if not line_number_stack:
+                        break
+                    payload.append(
+                        formatter.parse_apply_review_per_code_hunk(
+                            git_chunk,
+                            review_json,
+                            line_number_stack,
+                        )
+                    )
+                print(payload)
+            else:
+                reviewed_git_diff = send_request(
+                    api_key,
+                    prompt.get_apply_review_prompt(
+                        content, json.dumps(payload["reviews"]), max_completions_tokens
+                    ),
+                    "Applying changes...",
+                )
+                reviewed_git_diff = formatter.extract_content_from_markdown_code_block(
+                    reviewed_git_diff
+                )
+                file.close()
+                with open(file_path, "w") as file:
+                    if reviewed_git_diff:
+                        file.write(reviewed_git_diff)
+
+            # Call git apply using subprocess
+            # try:
+            #     current_directory = os.getcwd()
+            #     repo_root = find_git_repo_root(current_directory)
+            #     result = subprocess.run(
+            #         [
+            #             "git",
+            #             "apply",
+            #             "-",
+            #         ],  # Use "-" to indicate reading diff from stdin
+            #         input=reviewed_git_diff,  # Convert diff string to bytes
+            #         cwd=repo_root,  # Set the working directory of the repo
+            #         text=True,  # Interpret input and output as text
+            #         stdout=subprocess.PIPE,
+            #         stderr=subprocess.PIPE,
+            #         check=True,  # Raise an error if the command returns a non-zero exit code
+            #     )
+            #     print("Git apply successful:", result.stdout)
+            # except subprocess.CalledProcessError as e:
+            #     print("Error applying Git diff:", e.stderr)
 
     except FileNotFoundError:
         print(f"File '{file_path}' not found.")
     except IOError:
         print(f"Error reading file '{file_path}'.")
+    return None
+
+
+def find_git_repo_root(path):
+    while path != "/":
+        if os.path.exists(os.path.join(path, ".git")):
+            return path
+        path = os.path.dirname(path)
     return None
 
 
@@ -205,21 +253,14 @@ def run():
 
     # Review the changes using OpenAI API
     if args.action == "review":
-        review_files_separately = token_count > 3000
+        review_files_separately = token_count > 3072
 
-        if not review_files_separately and len(file_names) > 1:
-            print("Do you want to let your changed files be reviewed separately? (y/n)")
-            user_input = input()
-            if user_input == "y":
-                review_files_separately = True
-
-        # Check if the token count exceeds the limit of 1500
+        # Check if the token count exceeds the limit of 3072 (1024 tokens for response)
         # if yes, review the files separately
         if review_files_separately:
-            if token_count > 3000:
-                print("Your changes exceed the token limit of 1500.")
-
-            print("The Review will be splitted into multiple requests.")
+            print(
+                "Your changes are large. The Review will be splitted into multiple requests."
+            )
 
             # iterate over the file chunks in the git diff
             for index, value in enumerate(diff_file_chunks.values()):
@@ -228,10 +269,10 @@ def run():
                 if user_input == "n":
                     continue
 
-                chunk_token_count = count_tokens(value)
-                if chunk_token_count > 3000:
+                file_tokens = count_tokens(value)
+                if file_tokens > 3072:
                     print(
-                        "TODO: token count exceeds 1500. Split file chunks into chunk of changes"
+                        "TODO: token count exceeds 2048 for a file. Split file changes into chunk of changes."
                     )
                     exit()
                 review_result = request_review(api_key, value)
@@ -239,24 +280,32 @@ def run():
                     apply_review_changes(
                         api_key,
                         git_root + "/" + file_paths[index],
-                        file_names[index],
                         review_result[file_names[index]],
+                        code_change_chunks[index],
                     )
 
         # Review the changes in one request
         else:
-            request_review(api_key, formatted_diff)
+            review_result = request_review(api_key, formatted_diff)
+            print(review_result)
+            if review_result is not None:
+                for file in review_result:
+                    apply_review_changes(
+                        api_key,
+                        git_root + "/" + file,
+                        review_result[file],
+                    )
 
     # Create a commit message using OpenAI API
     if args.action == "commit":
         payload = prompt.get_commit_message_prompt(formatted_diff)
-        review_result = send_request(api_key, payload, "Creating commit message...")
+        commit_message = send_request(api_key, payload, "Creating commit message...")
         print("✨ Commit Message ✨")
-        print(review_result)
+        print(commit_message)
         print("Do you want to commit the changes? (y/n)")
         user_input = input()
 
         if user_input == "y":
             # Commit the changes
-            commit_command = ["git", "commit", "-m", review_result]
+            commit_command = ["git", "commit", "-m", commit_message]
             subprocess.run(commit_command, capture_output=True, text=True)
