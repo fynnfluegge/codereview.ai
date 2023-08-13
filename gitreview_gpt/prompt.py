@@ -34,11 +34,11 @@ def get_review_prompt(git_diff_text, max_tokens):
             {
                 "role": "user",
                 "content": "You are a code reviewer. You should review my code changes and provide feedback. "
-                + "Provide feeback on how to improve the code. "
+                + "Provide feedback on how to improve the code. "
                 + "Don't provide feedback on code style. "
                 + "You will get my changes with line numbers at the start of each line. "
-                + "Provide feedback as a json object with the following format: "
-                + '{"filename":{"line_number":{"feedback: your feedback.", "suggestion": "your suggestion"},}}',
+                + "Provide feedback as a JSON object with the following format: "
+                + '{"filename":{"line_number":{"feedback": "your feedback.", "suggestion": "your suggestion"}}}',
             },
             {
                 "role": "assistant",
@@ -62,14 +62,14 @@ def get_review_repair_prompt(invalid_json, error, max_tokens):
         "messages": [
             {
                 "role": "user",
-                "content": "I have a json that fails to parse with pythons `json.loads()` function. "
+                "content": "I have a JSON that fails to parse with Python's `json.loads()` function. "
                 + f"`json.loads()` throws the following error: {error}. "
-                + "You should fix the json. "
-                + "Provide only the fixed json in your response.",
+                + "You should fix the JSON. "
+                + "Provide only the fixed JSON in your response.",
             },
             {
                 "role": "assistant",
-                "content": "Sure! Please share the json.",
+                "content": "Sure! Please share the JSON.",
             },
             {
                 "role": "user",
@@ -79,7 +79,9 @@ def get_review_repair_prompt(invalid_json, error, max_tokens):
     }
 
 
-def get_apply_review_prompt(code, review_comments, max_tokens):
+def get_apply_review_for_file_prompt(
+    code, review_comments, max_tokens, programming_language
+):
     return {
         "model": "gpt-3.5-turbo",
         "max_tokens": max_tokens,
@@ -89,8 +91,8 @@ def get_apply_review_prompt(code, review_comments, max_tokens):
         "messages": [
             {
                 "role": "user",
-                "content": "Review the following Python code and address the review comments below:\n"
-                + "Python code:\n"
+                "content": f"Review the following {programming_language} code and address the review comments below:\n"
+                + f"{programming_language} code:\n"
                 + "```\n"
                 + code
                 + "\n"
@@ -98,8 +100,37 @@ def get_apply_review_prompt(code, review_comments, max_tokens):
                 + "Review comments:\n"
                 + review_comments
                 + "\n"
-                + "Apply the necessary changes to the Python code based on the review comments and provide an updated version of the code with the improvements made."
-                + "Provide only the updated Python code in your response. Don't include any explanations in your response.",
+                + f"Apply the necessary changes to the {programming_language} code based on the review comments and provide an updated version of the code with the improvements made."
+                + f"Provide only the updated {programming_language} code in your response. Don't include any explanations in your response.",
+            },
+        ],
+    }
+
+
+def get_apply_review_for_git_diff_chunk_promp(
+    gi_diff_chunk, review_comments, max_tokens, programming_language, file
+):
+    return {
+        "model": "gpt-3.5-turbo",
+        "max_tokens": max_tokens,
+        "temperature": 0.25,
+        "n": 1,
+        "stop": None,
+        "messages": [
+            {
+                "role": "user",
+                "content": f"Review the following {programming_language} code snippet and address the review comments below:\n"
+                + f"{programming_language} code:\n"
+                + "```\n"
+                + gi_diff_chunk
+                + "\n"
+                + "```\n"
+                + "Review comments:\n"
+                + review_comments
+                + "\n"
+                + f"Apply the necessary changes to the {programming_language} code based on the review comments. "
+                + f"Provide the updated {programming_language} code as a git diff for file {file} in your response. "
+                + "Don't include any explanations in your response.",
             },
         ],
     }

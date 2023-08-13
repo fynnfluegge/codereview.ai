@@ -5,6 +5,7 @@ import tiktoken
 import argparse
 import gitreview_gpt.prompt as prompt
 import gitreview_gpt.formatter as formatter
+import gitreview_gpt.utils as utils
 from yaspin import yaspin
 from typing import Dict, Any
 
@@ -81,16 +82,24 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
         review_json = formatter.parse_review_result(review_result)
     except ValueError:
         try:
+            # Try to parse review result from marldown code block
+            print(review_result)
             review_json = formatter.parse_review_result(
                 formatter.extract_content_from_markdown_code_block(review_result)
             )
-        except ValueError as e:
-            print("Review result has invalid format. It will be repaired.")
-            payload = prompt.get_review_repair_prompt(review_result, e, max_tokens)
-            review_result = send_request(api_key, payload, "Repairing...")
-            review_json = formatter.parse_review_result(
-                formatter.extract_content_from_markdown_code_block(review_result)
-            )
+        except ValueError:
+            try:
+                # Try to repair truncated review result
+                review_json = formatter.parse_review_result(
+                    utils.repair_truncated_json(review_result)
+                )
+            except ValueError as e:
+                print("Review result has invalid format. It will be repaired.")
+                payload = prompt.get_review_repair_prompt(review_result, e, max_tokens)
+                review_result = send_request(api_key, payload, "Repairing...")
+                review_json = formatter.parse_review_result(
+                    formatter.extract_content_from_markdown_code_block(review_result)
+                )
 
     print_review_from_response_json(review_json)
     return review_json
@@ -100,13 +109,15 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
 # for one specific file with the related review
 def apply_review_changes(
     api_key,
+    absolute_file_path,
     file_path,
     review_json,
     git_diff_chunks=None,
 ):
     try:
         reviewed_git_diff = None
-        with open(file_path, "r") as file:
+        with open(absolute_file_path, "r") as file:
+            programming_language = formatter.get_programming_language(file.name)
             content = file.read()
             payload = {
                 "code": content,
@@ -114,35 +125,123 @@ def apply_review_changes(
                     review_json
                 ),
             }
-            prompt_payload = prompt.get_apply_review_prompt(
-                content, json.dumps(payload["reviews"]), 4096
+            prompt_payload = prompt.get_apply_review_for_file_prompt(
+                content, json.dumps(payload["reviews"]), 4096, programming_language
             )
             tokens = count_tokens(json.dumps(prompt_payload))
-            max_completions_tokens = 4096 - tokens
             print(f"Tokens: {tokens}")
-            if tokens > 2048 and git_diff_chunks is not None:
+            if tokens > 1024 and git_diff_chunks is not None:
                 line_number_stack = []
                 for line_number in reversed(review_json.keys()):
-                    line_number_stack.append(int(line_number))
+                    line_number_stack.append(utils.parse_string_to_int(line_number))
                 # Split requests into changes chunks by selection markers
-                payload = []
+                current_payload = []
+                current_tokens = 0
                 for git_chunk in git_diff_chunks.values():
-                    print(git_chunk)
+                    print(line_number_stack)
                     if not line_number_stack:
                         break
-                    payload.append(
-                        formatter.parse_apply_review_per_code_hunk(
-                            git_chunk,
-                            review_json,
-                            line_number_stack,
+                    chunk_payload = formatter.parse_apply_review_per_code_hunk(
+                        git_chunk,
+                        review_json,
+                        line_number_stack,
+                    )
+                    print(chunk_payload)
+                    # there are review suggestions in that code chunk
+                    if chunk_payload:
+                        print("################")
+                        chunk_tokens = count_tokens(json.dumps(chunk_payload))
+                        print(f"Chunk tokens: {chunk_tokens}")
+                        print(f"Current tokens: {current_tokens}")
+                        # if the chunk is too big to be sent in one request
+                        # send request for each code chunk of selection marker
+                        if chunk_tokens > 1024:
+                            for chunk in chunk_payload:
+                                print(chunk["code"])
+                                print(chunk["suggestions"])
+
+                        if current_tokens + chunk_tokens < 1024:
+                            current_tokens += chunk_tokens
+                            print("ADD TO CURRENT PAYLOAD")
+                            print(chunk_payload)
+                            print("CURRENT PAYLOAD")
+                            print(current_payload)
+                            current_payload.extend(chunk_payload)
+                            print("CURRENT PAYLOAD")
+                            print(current_payload)
+                        else:
+                            if current_payload:
+                                print(current_payload)
+                                (
+                                    git_diff_chunk,
+                                    suggestions,
+                                ) = formatter.merge_code_chunks_and_suggestions(
+                                    current_payload
+                                )
+                                print("====================")
+                                print(git_diff_chunk)
+                                print(suggestions)
+                                git_diff_applied = send_request(
+                                    api_key,
+                                    prompt.get_apply_review_for_git_diff_chunk_promp(
+                                        git_diff_chunk,
+                                        json.dumps(suggestions),
+                                        4096 - current_tokens,
+                                        programming_language,
+                                        file_path,
+                                    ),
+                                    "Applying changes...",
+                                )
+                                print(git_diff_applied)
+                                # TODO apply git diff
+                                print("CONTINUE")
+                                current_payload = []
+                                current_payload.extend(chunk_payload)
+                                current_tokens = chunk_tokens
+                print("#### last chunk ####")
+                print(current_payload)
+                if current_payload and current_tokens < 1024:
+                    (
+                        git_diff_chunk,
+                        suggestions,
+                    ) = formatter.merge_code_chunks_and_suggestions(current_payload)
+
+                    message_tokens = count_tokens(
+                        json.dumps(
+                            prompt.get_apply_review_for_git_diff_chunk_promp(
+                                git_diff_chunk,
+                                json.dumps(suggestions),
+                                4096,
+                                programming_language,
+                                file_path,
+                            )
                         )
                     )
-                print(payload)
+                    print("====================")
+                    print(git_diff_chunk)
+                    print(suggestions)
+                    git_diff_applied = send_request(
+                        api_key,
+                        prompt.get_apply_review_for_git_diff_chunk_promp(
+                            git_diff_chunk,
+                            json.dumps(suggestions),
+                            4096 - message_tokens,
+                            programming_language,
+                            file_path,
+                        ),
+                        "Applying changes...",
+                    )
+                    print(git_diff_applied)
+
             else:
+                max_completions_tokens = 4096 - tokens
                 reviewed_git_diff = send_request(
                     api_key,
-                    prompt.get_apply_review_prompt(
-                        content, json.dumps(payload["reviews"]), max_completions_tokens
+                    prompt.get_apply_review_for_file_prompt(
+                        content,
+                        json.dumps(payload["reviews"]),
+                        max_completions_tokens,
+                        programming_language,
                     ),
                     "Applying changes...",
                 )
@@ -150,7 +249,7 @@ def apply_review_changes(
                     reviewed_git_diff
                 )
                 file.close()
-                with open(file_path, "w") as file:
+                with open(absolute_file_path, "w") as file:
                     if reviewed_git_diff:
                         file.write(reviewed_git_diff)
 
@@ -176,9 +275,9 @@ def apply_review_changes(
             #     print("Error applying Git diff:", e.stderr)
 
     except FileNotFoundError:
-        print(f"File '{file_path}' not found.")
+        print(f"File '{absolute_file_path}' not found.")
     except IOError:
-        print(f"Error reading file '{file_path}'.")
+        print(f"Error reading file '{absolute_file_path}'.")
     return None
 
 
@@ -197,6 +296,15 @@ def print_review_from_response_json(feedback_json):
         print(formatter.draw_box(file, feedback_json[file]))
 
 
+def has_unstaged_changes():
+    try:
+        # Run the "git diff --quiet" command and capture its output
+        subprocess.check_output(["git", "diff", "--quiet"])
+        return False  # No unstaged changes
+    except subprocess.CalledProcessError:
+        return True  # Unstaged changes exist
+
+
 def run():
     # Create an ArgumentParser object
     parser = argparse.ArgumentParser()
@@ -210,6 +318,7 @@ def run():
     parser.add_argument(
         "--branch", type=str, help="Review changes against a specific branch"
     )
+    parser.add_argument("--autonomous", action="store_true", help="Autonomous mode")
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -272,28 +381,42 @@ def run():
                 file_tokens = count_tokens(value)
                 if file_tokens > 3072:
                     print(
-                        "TODO: token count exceeds 2048 for a file. Split file changes into chunk of changes."
+                        "TODO: token count exceeds 3072 for a file. Split file changes into chunk of changes."
                     )
                     exit()
                 review_result = request_review(api_key, value)
                 if review_result is not None:
-                    apply_review_changes(
-                        api_key,
-                        git_root + "/" + file_paths[index],
-                        review_result[file_names[index]],
-                        code_change_chunks[index],
-                    )
+                    if not has_unstaged_changes():
+                        print(file_names[index])
+                        print(file_paths[index])
+                        apply_review_changes(
+                            api_key,
+                            git_root + "/" + file_paths[index],
+                            file_paths[index],
+                            review_result[file_names[index]],
+                            code_change_chunks[index],
+                        )
+                    else:
+                        print(
+                            "There are unstaged changes. Please commit or stage them before applying the review changes."
+                        )
 
         # Review the changes in one request
         else:
             review_result = request_review(api_key, formatted_diff)
             print(review_result)
             if review_result is not None:
-                for file in review_result:
-                    apply_review_changes(
-                        api_key,
-                        git_root + "/" + file,
-                        review_result[file],
+                if not has_unstaged_changes():
+                    for file in review_result:
+                        apply_review_changes(
+                            api_key,
+                            git_root + "/" + file,
+                            file,
+                            review_result[file],
+                        )
+                else:
+                    print(
+                        "There are unstaged changes. Please commit or stage them before applying the review changes."
                     )
 
     # Create a commit message using OpenAI API

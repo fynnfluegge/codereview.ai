@@ -6,10 +6,6 @@ from typing import Tuple
 
 
 class CodeChunk:
-    start_line: int
-    end_line: int
-    code: str
-
     def __init__(self, start_line, end_line, code):
         self.start_line = start_line
         self.end_line = end_line
@@ -20,9 +16,9 @@ class CodeChunk:
 # Add line numbers to the diff
 # Split the diff into chunks per file
 def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
-    diff_formatted = ""
-    file_chunks = {}
-    code_change_chunks = {}
+    git_diff_formatted = ""
+    git_diff_file_chunks = {}
+    git_diff_code_block_chunks = {}
     file_names = []
     file_paths = []
 
@@ -48,9 +44,9 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
         for i, code_change_chunk in enumerate(changes_per_file, 1):
             # Skip first chunk (it's the file name)
             if i == 1:
-                diff_formatted += code_change_chunk.rsplit("/", 1)[-1]
-                file_chunks[j] = code_change_chunk.rsplit("/", 1)[-1]
-                code_change_chunks[j] = {}
+                git_diff_formatted += code_change_chunk.rsplit("/", 1)[-1]
+                git_diff_file_chunks[j] = code_change_chunk.rsplit("/", 1)[-1]
+                git_diff_code_block_chunks[j] = {}
                 file_names.append(code_change_chunk.rstrip("\n").rsplit("/", 1)[-1])
                 file_paths.append(code_change_chunk[2:].rstrip("\n"))
                 continue
@@ -74,7 +70,7 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
             optional_selection_marker = ""
             for line in code_change_chunk.splitlines():
                 if line.startswith("@@ -"):
-                    diff_formatted += line + "\n"
+                    git_diff_formatted += line + "\n"
                     chunk_formatted += line + "\n"
                     # Extract selection marker
                     parts = line.split("def", 1)
@@ -91,7 +87,7 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
                     line_counter += 1
 
                 new_line = str(line_counter) + " " + line + "\n"
-                diff_formatted += new_line
+                git_diff_formatted += new_line
                 chunk_formatted += new_line
 
             code_chunk = CodeChunk(
@@ -101,13 +97,21 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
                 - 1,
                 code=chunk_formatted,
             )
-            file_chunks[j] += chunk_formatted
-            if optional_selection_marker not in code_change_chunks[j]:
-                code_change_chunks[j][optional_selection_marker] = [code_chunk]
+            git_diff_file_chunks[j] += chunk_formatted
+            if optional_selection_marker not in git_diff_code_block_chunks[j]:
+                git_diff_code_block_chunks[j][optional_selection_marker] = [code_chunk]
             else:
-                code_change_chunks[j][optional_selection_marker].append(code_chunk)
+                git_diff_code_block_chunks[j][optional_selection_marker].append(
+                    code_chunk
+                )
 
-    return diff_formatted, file_chunks, code_change_chunks, file_names, file_paths
+    return (
+        git_diff_formatted,
+        git_diff_file_chunks,
+        git_diff_code_block_chunks,
+        file_names,
+        file_paths,
+    )
 
 
 def extract_content_from_markdown_code_block(markdown_code_block):
@@ -211,3 +215,46 @@ def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stac
         if not line_number_stack:
             break
     return hunk_review_payload
+
+
+def merge_code_chunks_and_suggestions(code_chunks_with_suggestions):
+    code_chunks = ""
+    suggestions = {}
+    for code_chunk_with_suggestions in code_chunks_with_suggestions:
+        code_chunks += code_chunk_with_suggestions["code"]
+        for line in code_chunk_with_suggestions["suggestions"]:
+            suggestions[line] = code_chunk_with_suggestions["suggestions"][line]
+    return code_chunks, suggestions
+
+
+def get_programming_language(filename):
+    language_mapping = {
+        ".py": "Python",
+        ".js": "JavaScript",
+        ".java": "Java",
+        ".cpp": "C++",
+        ".c": "C",
+        ".html": "HTML",
+        ".css": "CSS",
+        ".php": "PHP",
+        ".rb": "Ruby",
+        ".go": "Go",
+        ".rs": "Rust",
+        ".swift": "Swift",
+        ".kt": "Kotlin",
+        ".cs": "C#",
+        ".m": "Objective-C",
+        ".scala": "Scala",
+        ".pl": "Perl",
+        ".lua": "Lua",
+        ".r": "R",
+        ".ts": "TypeScript",
+    }
+
+    # Extract file extension from the filename
+    file_extension = filename[filename.rfind(".") :].lower()
+
+    if file_extension in language_mapping:
+        return language_mapping[file_extension]
+    else:
+        return "Unknown"
