@@ -1,4 +1,6 @@
 import json
+import subprocess
+import tiktoken
 
 
 def parse_string_to_int(input_string):
@@ -33,3 +35,58 @@ def repair_truncated_json(json_str):
             return repaired_json + "\n}\n}"
         else:
             raise ValueError("Could not repair JSON")
+
+
+def get_programming_language(filename):
+    language_mapping = {
+        ".py": "Python",
+        ".js": "JavaScript",
+        ".java": "Java",
+        ".cpp": "C++",
+        ".c": "C",
+        ".html": "HTML",
+        ".css": "CSS",
+        ".php": "PHP",
+        ".rb": "Ruby",
+        ".go": "Go",
+        ".rs": "Rust",
+        ".swift": "Swift",
+        ".kt": "Kotlin",
+        ".cs": "C#",
+        ".m": "Objective-C",
+        ".scala": "Scala",
+        ".pl": "Perl",
+        ".lua": "Lua",
+        ".r": "R",
+        ".ts": "TypeScript",
+    }
+
+    # Extract file extension from the filename
+    file_extension = filename[filename.rfind(".") :].lower()
+
+    if file_extension in language_mapping:
+        return language_mapping[file_extension]
+    else:
+        return "Unknown"
+
+
+# Return the number of tokens in a string
+def count_tokens(text):
+    encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    tokenized = encoding.encode(text)
+    return len(tokenized)
+
+
+def get_git_repo_root():
+    return subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], universal_newlines=True
+    ).strip()
+
+
+def has_unstaged_changes():
+    try:
+        # Run the "git diff --quiet" command and capture its output
+        subprocess.check_output(["git", "diff", "--quiet"])
+        return False  # No unstaged changes
+    except subprocess.CalledProcessError:
+        return True  # Unstaged changes exist

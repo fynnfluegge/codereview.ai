@@ -108,7 +108,7 @@ def get_apply_review_for_file_prompt(
 
 
 def get_apply_review_for_git_diff_chunk_promp(
-    gi_diff_chunk, review_comments, max_tokens, programming_language, file
+    gi_diff_chunk, review_comments, max_tokens, programming_language
 ):
     return {
         "model": "gpt-3.5-turbo",
@@ -129,7 +129,8 @@ def get_apply_review_for_git_diff_chunk_promp(
                 + review_comments
                 + "\n"
                 + f"Apply the necessary changes to the {programming_language} code based on the review comments. "
-                + f"Provide the updated {programming_language} code as a git diff for file {file} in your response. "
+                + f"Provide only your modified lines of code in the response. "
+                # + "Add the line numbers of the updated code at the start of each line. "
                 + "Don't include any explanations in your response.",
             },
         ],

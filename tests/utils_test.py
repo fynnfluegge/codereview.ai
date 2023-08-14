@@ -1,5 +1,4 @@
 import unittest
-import json
 import gitreview_gpt.utils as utils
 
 

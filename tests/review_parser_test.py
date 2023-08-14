@@ -148,11 +148,23 @@ class TestReviewParser(unittest.TestCase):
             + "    print('Hello World!')\n"
             + "```\n"
         )
-        self.git_diff = (
+        self.string_with_git_diff_markdown_block = (
             "Here is the git diff for the code changes based on the provided reviews:\n"
             + "```diff\n"
             + "diff --git a/README.md b/README.md\n"
             + "```"
+        )
+        self.string_with_multiple_markdown_code_blocks = (
+            "Here is some code:\n"
+            + "```python\n"
+            + "def run():\n"
+            + "    print('Hello World!')\n"
+            + "```\n"
+            + "Here is some more code:\n"
+            + "```\n"
+            + "def run():\n"
+            + "    print('Hello World!')\n"
+            + "```\n"
         )
 
     def test_parse_apply_review_per_code_hunk(self):
@@ -164,24 +176,6 @@ class TestReviewParser(unittest.TestCase):
             code_change_hunk_review_payload, self.code_change_hunk_review_payload
         )
         self.assertEqual(line_numbers, [])
-
-    def test_extract_content_from_markdown_code_block(self):
-        content = formatter.extract_content_from_markdown_code_block(
-            self.string_with_markdown_code_block
-        )
-        python_content = formatter.extract_content_from_markdown_code_block(
-            self.string_with_python_markdown_code_block
-        )
-        git_diff = formatter.extract_content_from_markdown_code_block(self.git_diff)
-        self.assertEqual(
-            content,
-            "def run():\n" + "    print('Hello World!')",
-        )
-        self.assertEqual(
-            python_content,
-            "def run():\n" + "    print('Hello World!')",
-        )
-        self.assertEqual(git_diff, "diff --git a/README.md b/README.md")
 
     def test_merge_code_chunks_and_suggestions(self):
         code, suggestions = formatter.merge_code_chunks_and_suggestions(
@@ -196,4 +190,34 @@ class TestReviewParser(unittest.TestCase):
                 232: "Some feedback comments to line 227.",
                 215: "Some feedback comments to line 215.",
             },
+        )
+
+    def test_extract_content_from_markdown_code_block(self):
+        content = formatter.extract_content_from_markdown_code_block(
+            self.string_with_markdown_code_block
+        )
+        python_content = formatter.extract_content_from_markdown_code_block(
+            self.string_with_python_markdown_code_block
+        )
+        git_diff_content = formatter.extract_content_from_markdown_code_block(
+            self.string_with_git_diff_markdown_block
+        )
+        multiple_content = formatter.extract_content_from_multiple_markdown_code_blocks(
+            self.string_with_multiple_markdown_code_blocks
+        )
+        self.assertEqual(
+            content,
+            "def run():\n" + "    print('Hello World!')",
+        )
+        self.assertEqual(
+            python_content,
+            "def run():\n" + "    print('Hello World!')",
+        )
+        self.assertEqual(git_diff_content, "diff --git a/README.md b/README.md")
+        self.assertEqual(
+            multiple_content,
+            [
+                "def run():\n" + "    print('Hello World!')",
+                "def run():\n" + "    print('Hello World!')",
+            ],
         )

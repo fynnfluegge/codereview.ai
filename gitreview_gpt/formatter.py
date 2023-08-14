@@ -67,11 +67,13 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
             line_counter = -1 + chunk_dividers[0]["new_start_line"]
 
             chunk_formatted = ""
+            code_chunk_formatted = ""
             optional_selection_marker = ""
             for line in code_change_chunk.splitlines():
                 if line.startswith("@@ -"):
                     git_diff_formatted += line + "\n"
                     chunk_formatted += line + "\n"
+                    code_chunk_formatted += line + "\n"
                     # Extract selection marker
                     parts = line.split("def", 1)
                     if len(parts) > 1:
@@ -90,12 +92,17 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
                 git_diff_formatted += new_line
                 chunk_formatted += new_line
 
+                if line.startswith("+"):
+                    code_chunk_formatted += str(line_counter) + " " + line[1:] + "\n"
+                else:
+                    code_chunk_formatted += new_line
+
             code_chunk = CodeChunk(
                 start_line=chunk_dividers[0]["new_start_line"],
                 end_line=chunk_dividers[0]["new_end_line"]
                 + chunk_dividers[0]["new_start_line"]
                 - 1,
-                code=chunk_formatted,
+                code=code_chunk_formatted,
             )
             git_diff_file_chunks[j] += chunk_formatted
             if optional_selection_marker not in git_diff_code_block_chunks[j]:
@@ -114,13 +121,22 @@ def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
     )
 
 
-def extract_content_from_markdown_code_block(markdown_code_block):
+# Extract markdown code blocks from text
+def extract_content_from_markdown_code_block(markdown_code_block) -> str:
     pattern = r"```(?:[a-zA-Z0-9]+)?\n(.*?)```"
     match = re.search(pattern, markdown_code_block, re.DOTALL)
     if match:
         return match.group(1).strip()
     else:
         return markdown_code_block.strip()
+
+
+# Extract multiple markdown code blocks from text
+def extract_content_from_multiple_markdown_code_blocks(markdown_text) -> list:
+    pattern = r"```(?:[a-zA-Z0-9]+)?\n(.*?)```"
+    matches = re.findall(pattern, markdown_text, re.DOTALL)
+    extracted_content = [match.strip() for match in matches]
+    return extracted_content
 
 
 def parse_review_result(review_result):
@@ -225,36 +241,3 @@ def merge_code_chunks_and_suggestions(code_chunks_with_suggestions):
         for line in code_chunk_with_suggestions["suggestions"]:
             suggestions[line] = code_chunk_with_suggestions["suggestions"][line]
     return code_chunks, suggestions
-
-
-def get_programming_language(filename):
-    language_mapping = {
-        ".py": "Python",
-        ".js": "JavaScript",
-        ".java": "Java",
-        ".cpp": "C++",
-        ".c": "C",
-        ".html": "HTML",
-        ".css": "CSS",
-        ".php": "PHP",
-        ".rb": "Ruby",
-        ".go": "Go",
-        ".rs": "Rust",
-        ".swift": "Swift",
-        ".kt": "Kotlin",
-        ".cs": "C#",
-        ".m": "Objective-C",
-        ".scala": "Scala",
-        ".pl": "Perl",
-        ".lua": "Lua",
-        ".r": "R",
-        ".ts": "TypeScript",
-    }
-
-    # Extract file extension from the filename
-    file_extension = filename[filename.rfind(".") :].lower()
-
-    if file_extension in language_mapping:
-        return language_mapping[file_extension]
-    else:
-        return "Unknown"

@@ -203,8 +203,8 @@ class TestFormatter(unittest.TestCase):
                         + "211 \n"
                         + '212     print("The Review will be splitted into multiple requests.")\n'
                         + "213 \n"
-                        + "214 +    for index, value in enumerate(diff_file_chunks.values()):\n"
-                        + '215 +        print(f"Review file \033[01m{file_names[index]}\033[0m? (y/n)")\n'
+                        + "214     for index, value in enumerate(diff_file_chunks.values()):\n"
+                        + '215         print(f"Review file \033[01m{file_names[index]}\033[0m? (y/n)")\n'
                         + "216          user_input = input()\n"
                         + '217          if user_input == "n":\n'
                         + "218              continue\n",
@@ -216,15 +216,15 @@ class TestFormatter(unittest.TestCase):
                         + '223          "TODO: token count exceeds 1500. Split file chunks into chunk of changes"\n'
                         + "224             )\n"
                         + "225             exit()\n"
-                        + "226 +                review_result = request_review(api_key, value)\n"
-                        + "227 +                # if review_result is not None:\n"
-                        + "228 +                #     request_review_changes(\n"
-                        + "229 +                #         api_key,\n"
-                        + '230 +                #         git_root + " / " + file_paths[index],\n'
-                        + "231 +                #         review_result[file_names[index]],\n"
-                        + "232 +                #         value,\n"
-                        + "233 +                #         code_change_chunks[index],\n"
-                        + "234 +                #     )\n"
+                        + "226                 review_result = request_review(api_key, value)\n"
+                        + "227                 # if review_result is not None:\n"
+                        + "228                 #     request_review_changes(\n"
+                        + "229                 #         api_key,\n"
+                        + '230                 #         git_root + " / " + file_paths[index],\n'
+                        + "231                 #         review_result[file_names[index]],\n"
+                        + "232                 #         value,\n"
+                        + "233                 #         code_change_chunks[index],\n"
+                        + "234                 #     )\n"
                         + "235 \n"
                         + "236      # Review the changes in one request\n"
                         + "237      else:\n",
@@ -240,18 +240,18 @@ class TestFormatter(unittest.TestCase):
                         + "1 import re\n"
                         + "2 import textwrap\n"
                         + "3 import os\n"
-                        + "4 +import json\n"
-                        + "5 +\n"
-                        + "6 +\n"
-                        + "7 +class CodeChunk:\n"
-                        + "8 +    start_line: int\n"
-                        + "9 +    end_line: int\n"
-                        + "10 +    code: str\n"
-                        + "11 +\n"
-                        + "12 +    def __init__(self, start_line, end_line, code):\n"
-                        + "13 +        self.start_line = start_line\n"
-                        + "14 +        self.end_line = end_line\n"
-                        + "15 +        self.code = code\n"
+                        + "4 import json\n"
+                        + "5 \n"
+                        + "6 \n"
+                        + "7 class CodeChunk:\n"
+                        + "8     start_line: int\n"
+                        + "9     end_line: int\n"
+                        + "10     code: str\n"
+                        + "11 \n"
+                        + "12     def __init__(self, start_line, end_line, code):\n"
+                        + "13         self.start_line = start_line\n"
+                        + "14         self.end_line = end_line\n"
+                        + "15         self.code = code\n"
                         + "16 \n"
                         + "17 \n"
                         + "18 # Format the git diff into a format that can be used by the GPT-3.5 API\n",
