@@ -130,7 +130,7 @@ def get_apply_review_for_git_diff_chunk_promp(
                 + "\n"
                 + f"Apply the necessary changes to the {programming_language} code based on the review comments. "
                 + f"Provide only your modified lines of code in the response. "
-                # + "Add the line numbers of the updated code at the start of each line. "
+                + "Add the line numbers of the updated code at the start of each line. "
                 + "Don't include any explanations in your response.",
             },
         ],

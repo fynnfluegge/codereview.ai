@@ -136,6 +136,8 @@ def extract_content_from_multiple_markdown_code_blocks(markdown_text) -> list:
     pattern = r"```(?:[a-zA-Z0-9]+)?\n(.*?)```"
     matches = re.findall(pattern, markdown_text, re.DOTALL)
     extracted_content = [match.strip() for match in matches]
+    if len(extracted_content) == 0:
+        extracted_content = [markdown_text.strip()]
     return extracted_content
 
 

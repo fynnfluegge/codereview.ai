@@ -221,3 +221,15 @@ class TestReviewParser(unittest.TestCase):
                 "def run():\n" + "    print('Hello World!')",
             ],
         )
+        self.assertEqual(
+            formatter.extract_content_from_multiple_markdown_code_blocks(
+                "def run():\n"
+                + "    print('Hello World!')\n"
+                + "    print('Hello World!')\n"
+            ),
+            [
+                "def run():\n"
+                + "    print('Hello World!')\n"
+                + "    print('Hello World!')",
+            ],
+        )

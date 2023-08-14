@@ -78,6 +78,8 @@ def apply_review(
             # tokens for file content and review suggestions are greater than threshold
             # split requests into code chunks by selection markers
             if tokens > 1024 and selection_marker_chunks is not None:
+                # initialize reviewed code for applying code changes later a tonce
+                reviewed_code = []
                 # create line number stack for  merging code chunk with line numbers
                 line_number_stack = []
                 for line_number in reversed(review_json.keys()):
@@ -98,8 +100,6 @@ def apply_review(
                 )
                 initial_tokens = current_tokens
                 for code_chunk in selection_marker_chunks.values():
-                    print(current_tokens)
-                    print(initial_tokens)
                     # if there are no more line numbers in stack,
                     # there are no more review suggestions, break loop
                     if not line_number_stack:
@@ -123,6 +123,8 @@ def apply_review(
                                 # split into code_chunk_chunks
                                 # print(chunk["code"])
                                 # print(chunk["suggestions"])
+                                print("chunk_tokens: " + str(chunk_tokens))
+                                print("TODO: split chunk into smaller chunks")
                                 pass
 
                         # else merge chunk with current payload if
@@ -135,10 +137,10 @@ def apply_review(
                         # and initialize new payload with current chunk afterwards
                         else:
                             if current_payload:
-                                reviewed_code = request_review_changes(
+                                reviewed_code_chunks = request_review_changes(
                                     current_payload, api_key, programming_language
                                 )
-                                apply_reviewed_code(reviewed_code)
+                                add_reviewed_code(reviewed_code_chunks, reviewed_code)
                                 current_payload = []
                                 current_payload.extend(chunk_payload)
                                 current_tokens = chunk_tokens + initial_tokens
@@ -146,10 +148,13 @@ def apply_review(
                 # If there are still code chunks in current payload
                 # send final request
                 if current_payload:
-                    reviewed_code = request_review_changes(
+                    reviewed_code_chunks = request_review_changes(
                         current_payload, api_key, programming_language
                     )
-                    apply_reviewed_code(reviewed_code)
+                    add_reviewed_code(reviewed_code_chunks, reviewed_code)
+
+                file.close()
+                utils.replace_lines_in_file(absolute_file_path, "".join(reviewed_code))
 
             # tokens for file content and review suggestions are less than threshold
             # send request for file content and review suggestions
@@ -210,11 +215,11 @@ def request_review_changes(code_with_suggestions, api_key, programming_language)
     )
 
 
-def apply_reviewed_code(review_applied):
+def add_reviewed_code(review_applied, reviewed_code):
     if review_applied:
         for (
             improved_code_block
         ) in formatter.extract_content_from_multiple_markdown_code_blocks(
             review_applied
         ):
-            print(improved_code_block)
+            reviewed_code.append(improved_code_block)
