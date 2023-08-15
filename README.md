@@ -1,6 +1,9 @@
 # gitreview-gpt
 [![Build](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/build.yml)
 [![Publish](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/publish.yml)
+<a href="https://github.com/fynnfluegge/rocketnotes/blob/main/LICENSE">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg"/>
+</a>
 
 `gitreview-gpt` reviews your git changes with OpenAI's GPT-3.5 model from command line and provides detailed review comments with the corresponding line numbers.
 Your `git diff` is extensively parsed to a well comprehensible format for the `gpt-3.5-turbo` completion api to get precise feedback based on your code changes.
