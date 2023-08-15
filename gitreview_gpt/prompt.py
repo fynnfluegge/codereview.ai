@@ -1,8 +1,8 @@
 def get_commit_message_prompt(git_diff_text):
     return {
         "model": "gpt-3.5-turbo",
-        "max_tokens": 512,
-        "temperature": 0.2,
+        "max_tokens": 128,
+        "temperature": 0.5,
         "n": 1,
         "stop": None,
         "messages": [
@@ -27,7 +27,7 @@ def get_review_prompt(git_diff_text, max_tokens):
     return {
         "model": "gpt-3.5-turbo",
         "max_tokens": max_tokens,
-        "temperature": 0.5,
+        "temperature": 0.4,
         "n": 1,
         "stop": None,
         "messages": [

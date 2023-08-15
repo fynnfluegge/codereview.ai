@@ -57,10 +57,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
 # Retrieve code changes from openai completions api
 # for one specific file with the related review
 def apply_review(
-    api_key,
-    absolute_file_path,
-    review_json,
-    selection_marker_chunks=None,
+    api_key, absolute_file_path, review_json, selection_marker_chunks: Dict
 ):
     try:
         with open(absolute_file_path, "r") as file:
@@ -100,7 +97,8 @@ def apply_review(
                     )
                 )
                 initial_tokens = current_tokens
-                for code_chunk in selection_marker_chunks.values():
+                code_chunk_count = selection_marker_chunks.__len__()
+                for index, code_chunk in enumerate(selection_marker_chunks.values()):
                     # if there are no more line numbers in stack,
                     # there are no more review suggestions, break loop
                     if not line_number_stack:
@@ -121,12 +119,9 @@ def apply_review(
                         # send request for each code chunk of selection marker
                         if chunk_tokens + initial_tokens > 1024:
                             for chunk in chunk_payload:
-                                # split into code_chunk_chunks
-                                # print(chunk["code"])
-                                # print(chunk["suggestions"])
-                                # print("chunk_tokens: " + str(chunk_tokens))
-                                # print("TODO: split chunk into smaller chunks")
+                                # TODO split into code_chunk_chunks
                                 pass
+                            continue
 
                         # else merge chunk with current payload if
                         # merged tokens still under threshold
@@ -138,9 +133,18 @@ def apply_review(
                         # and initialize new payload with current chunk afterwards
                         else:
                             if current_payload:
+                                print("CURRENT PAYLOAD")
+                                print(current_payload)
                                 reviewed_code_chunks = request_review_changes(
-                                    current_payload, api_key, programming_language
+                                    current_payload,
+                                    api_key,
+                                    programming_language,
+                                    index,
+                                    code_chunk_count,
                                 )
+                                print("REVIEWED CODE CHUNKS")
+                                print(reviewed_code_chunks)
+                                print("................")
                                 add_reviewed_code(reviewed_code_chunks, reviewed_code)
                                 current_payload = []
                                 current_payload.extend(chunk_payload)
@@ -150,7 +154,11 @@ def apply_review(
                 # send final request
                 if current_payload:
                     reviewed_code_chunks = request_review_changes(
-                        current_payload, api_key, programming_language
+                        current_payload,
+                        api_key,
+                        programming_language,
+                        code_chunk_count,
+                        code_chunk_count,
                     )
                     add_reviewed_code(reviewed_code_chunks, reviewed_code)
 
@@ -203,7 +211,9 @@ def apply_review(
     return None
 
 
-def request_review_changes(code_with_suggestions, api_key, programming_language):
+def request_review_changes(
+    code_with_suggestions, api_key, programming_language, current_step, total_steps
+):
     (
         code_chunk,
         suggestions,
@@ -227,7 +237,7 @@ def request_review_changes(code_with_suggestions, api_key, programming_language)
             4096 - message_tokens,
             programming_language,
         ),
-        "Applying changes...🔧",
+        f"Applying changes...🔧 {current_step}/{total_steps}",
     )
 
 

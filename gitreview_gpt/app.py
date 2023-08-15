@@ -13,7 +13,9 @@ def get_git_diff(staged, branch):
     if not branch:
         command = ["git", "diff", "--cached"] if staged else ["git", "diff", "HEAD"]
     else:
-        command = ["git", "diff", branch]
+        command = (
+            ["git", "diff", branch, "--cached"] if staged else ["git", "diff", branch]
+        )
 
     git_diff = subprocess.run(command, capture_output=True, text=True)
 
@@ -27,7 +29,7 @@ def print_review_from_response_json(feedback_json):
         if feedback_json[file]:
             print(formatter.draw_box(file, feedback_json[file]))
         else:
-            print("No issues found in " + file)
+            print("No issues found in " + utils.get_bold_text(file))
 
 
 def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks):
@@ -47,7 +49,8 @@ def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks):
                         )
             else:
                 print(
-                    f"There are unstaged changes in {file}. Please commit or stage them before applying the review changes."
+                    f"There are unstaged changes in {utils.get_bold_text(file)}. "
+                    + "Please commit or stage them before applying the review changes."
                 )
 
 
@@ -97,9 +100,9 @@ def run():
 
     if not diff_text:
         if not args.staged:
-            print("No staged git changes.")
-        else:
             print("No git changes.")
+        else:
+            print("No staged git changes.")
         exit()
 
     (
@@ -119,7 +122,8 @@ def run():
         # if yes, review the files separately
         if review_files_separately:
             print(
-                "Your changes are large. The Review will be splitted into multiple requests."
+                "Your changes are large. "
+                + "The Review will be splitted into multiple requests."
             )
 
             # iterate over the file chunks in the git diff
@@ -132,7 +136,8 @@ def run():
                     file_tokens = utils.count_tokens(value)
                     if file_tokens > 3072:
                         print(
-                            "TODO: token count exceeds 3072 for a file. Split file changes into chunk of changes."
+                            "TODO: token count exceeds 3072 for a file. "
+                            + "Split file changes into chunk of changes."
                         )
                         exit()
                     review_json = reviewer.request_review(api_key, value)

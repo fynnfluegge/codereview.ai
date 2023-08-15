@@ -91,7 +91,7 @@ def get_git_repo_root():
 def has_unstaged_changes(file):
     try:
         # Run the "git diff --quiet" command and capture its output
-        subprocess.check_output(["git", "diff", "--quiet"])
+        subprocess.check_output(["git", "diff", "--quiet", file])
         return False  # No unstaged changes
     except subprocess.CalledProcessError:
         return True  # Unstaged changes exist
