@@ -166,6 +166,27 @@ class TestReviewParser(unittest.TestCase):
             + "    print('Hello World!')\n"
             + "```\n"
         )
+        self.code_block_with_line_numbers = (
+            "18: def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:\n"
+            + '19:     git_diff_formatted = ""\n'
+            + "20     git_diff_file_chunks = {}\n"
+            + "21     git_diff_code_block_chunks = {}\n"
+            + "22     file_names = []\n"
+            + "23     file_paths = []\n"
+            + "24 \n"
+            + "\n"
+            + "25     # Split git diff into chunks with separator +++ line inclusive,\n"
+            + "26     # the line with the filename\n"
+            + '27     pattern = r"(?=^(\+\+\+).*$)"\n'
+            + '28     parent_chunks = re.split(r"\n'
+            + '# \+{3,}\s", diff_text, re.MULTILINE)\n'
+            + "29     for j, file_chunk in enumerate(parent_chunks, -1):\n"
+            + "30         # Skip first chunk (it's the head info)\n"
+            + "31         if j == -1:\n"
+            + "32             continue\n"
+            + "33:\n"
+            + "34         # Remove git --diff section\n"
+        )
 
     def test_parse_apply_review_per_code_hunk(self):
         line_numbers = [232, 226, 225, 215]
@@ -232,4 +253,31 @@ class TestReviewParser(unittest.TestCase):
                 + "    print('Hello World!')\n"
                 + "    print('Hello World!')",
             ],
+        )
+
+    def test_code_block_to_dict(self):
+        code_block_dict = formatter.code_block_to_dict(
+            self.code_block_with_line_numbers
+        )
+        self.assertEqual(
+            code_block_dict,
+            {
+                18: "def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:",
+                19: '    git_diff_formatted = ""',
+                20: "    git_diff_file_chunks = {}",
+                21: "    git_diff_code_block_chunks = {}",
+                22: "    file_names = []",
+                23: "    file_paths = []",
+                24: "",
+                25: "    # Split git diff into chunks with separator +++ line inclusive,",
+                26: "    # the line with the filename",
+                27: '    pattern = r"(?=^(\+\+\+).*$)"',
+                28: '    parent_chunks = re.split(r"\n# \+{3,}\s", diff_text, re.MULTILINE)',
+                29: "    for j, file_chunk in enumerate(parent_chunks, -1):",
+                30: "        # Skip first chunk (it's the head info)",
+                31: "        if j == -1:",
+                32: "            continue",
+                33: "",
+                34: "        # Remove git --diff section",
+            },
         )

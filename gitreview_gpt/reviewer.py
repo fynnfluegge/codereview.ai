@@ -154,7 +154,10 @@ def apply_review(
                     add_reviewed_code(reviewed_code_chunks, reviewed_code)
 
                 file.close()
-                utils.replace_lines_in_file(absolute_file_path, "".join(reviewed_code))
+                code_lines: Dict[int, str] = formatter.code_block_to_dict(
+                    "".join(reviewed_code)
+                )
+                utils.override_lines_in_file(absolute_file_path, code_lines)
 
             # tokens for file content and review suggestions are less than threshold
             # send request for file content and review suggestions
@@ -177,13 +180,15 @@ def apply_review(
                 with open(absolute_file_path, "w") as file:
                     if reviewed_git_diff:
                         file.write(reviewed_git_diff)
+                        print(f"Successfully applied review changes to {file.name} ✅")
 
     except FileNotFoundError:
         print(f"File '{absolute_file_path}' not found.")
     except IOError:
         print(f"Error reading file '{absolute_file_path}'.")
-    except ValueError:
+    except ValueError as e:
         print(f"Error while applying review changes for file {absolute_file_path}.")
+        print(e)
     return None
 
 
@@ -222,4 +227,4 @@ def add_reviewed_code(review_applied, reviewed_code):
         ) in formatter.extract_content_from_multiple_markdown_code_blocks(
             review_applied
         ):
-            reviewed_code.append(improved_code_block)
+            reviewed_code.append("\n" + improved_code_block)

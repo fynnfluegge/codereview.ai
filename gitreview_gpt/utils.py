@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import tiktoken
 
@@ -92,25 +93,19 @@ def has_unstaged_changes():
         return True  # Unstaged changes exist
 
 
-def replace_lines_in_file(file_path, replacement_string):
-    # Read the content of the file
-    with open(file_path, "r") as file:
-        file_content = file.readlines()
+def override_lines_in_file(file_path, lines_dict):
+    try:
+        with open(file_path, "r") as file:
+            existing_lines = file.readlines()
 
-    # Split the replacement string into lines
-    replacement_lines = replacement_string.strip().split("\n")
+        with open(file_path, "w") as file:
+            for line_number, new_line_content in lines_dict.items():
+                # Adjust line number to 0-based index
+                line_index = line_number - 1
 
-    # Create a dictionary to store replacement lines by line number
-    replacements = {}
-    for line in replacement_lines:
-        line_number, line_content = line.split(" ", 1)
-        replacements[int(line_number)] = line_content
+                if 0 <= line_index < len(existing_lines):
+                    existing_lines[line_index] = new_line_content
 
-    # Update the file content with replacement lines
-    for line_number, line_content in replacements.items():
-        if line_number == len(file_content):
-            file_content[line_number - 1] = line_content + "\n"
-
-    # Write the updated content back to the file
-    with open(file_path, "w") as file:
-        file.writelines(file_content)
+            file.writelines(existing_lines)
+    except Exception as e:
+        print("An error occurred:", str(e))

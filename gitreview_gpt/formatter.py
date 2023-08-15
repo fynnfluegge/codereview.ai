@@ -2,7 +2,7 @@ import re
 import textwrap
 import os
 import json
-from typing import Tuple
+from typing import Tuple, Dict
 
 
 class CodeChunk:
@@ -15,7 +15,7 @@ class CodeChunk:
 # Format the git diff into a format that can be used by the GPT-3.5 API
 # Add line numbers to the diff
 # Split the diff into chunks per file
-def format_git_diff(diff_text) -> Tuple[str, dict, dict, list, list]:
+def format_git_diff(diff_text: str) -> Tuple[str, dict, dict, list, list]:
     git_diff_formatted = ""
     git_diff_file_chunks = {}
     git_diff_code_block_chunks = {}
@@ -243,3 +243,39 @@ def merge_code_chunks_and_suggestions(code_chunks_with_suggestions):
         for line in code_chunk_with_suggestions["suggestions"]:
             suggestions[line] = code_chunk_with_suggestions["suggestions"][line]
     return code_chunks, suggestions
+
+
+def code_block_to_dict(code_block) -> Dict[int, str]:
+    lines = code_block.strip().splitlines()
+    parsed_code_block = {}
+    current_line_number = 0
+
+    for line in lines:
+        parts = re.split(r"^(\d{1,4}:?)", line, maxsplit=1)
+        parts = [part for part in parts if part]  # Remove empty parts from split
+
+        if len(parts) > 1:
+            number_part = parts[0]
+            remaining_part = parts[1]
+            remaining_part = remaining_part.replace(" ", "", 1)
+            if ":" in number_part:
+                number = int(number_part[:-1])  # Remove colon and convert to int
+            else:
+                number = int(number_part)
+            current_line_number = number
+
+            parsed_code_block[number] = remaining_part
+        if len(parts) == 1:
+            try:
+                number_part = parts[0]
+                if ":" in number_part:
+                    number = int(number_part[:-1])  # Remove colon and convert to int
+                else:
+                    number = int(number_part)
+                current_line_number = number
+                parsed_code_block[number] = ""
+            except ValueError:
+                # If the line doesn't start with a number, it belongs to the prev line
+                parsed_code_block[current_line_number] += "\n" + parts[0]
+
+    return parsed_code_block
