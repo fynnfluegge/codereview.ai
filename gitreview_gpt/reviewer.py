@@ -14,7 +14,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
         json.dumps(prompt.get_review_prompt(code_to_review, 4096))
     )
     payload = prompt.get_review_prompt(code_to_review, max_tokens)
-    review_result = request.send_request(api_key, payload, "Reviewing...")
+    review_result = request.send_request(api_key, payload, "Reviewing...🤖")
     if not review_result:
         return None
     try:
@@ -38,7 +38,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
                         review_result, e, max_tokens
                     )
                     review_result = request.send_request(
-                        api_key, payload, "Repairing... 🔧"
+                        api_key, payload, "Repairing...🔧"
                     )
                     review_json = formatter.parse_review_result(
                         formatter.extract_content_from_markdown_code_block(
@@ -163,8 +163,8 @@ def apply_review(
                 print(code_lines)
                 utils.override_lines_in_file(absolute_file_path, code_lines)
                 print(
-                    "Successfully applied review changes "
-                    + f"{os.path.basename(absolute_file_path)} ✅"
+                    "Successfully applied review changes to"
+                    + f"{utils.get_bold_text(os.path.basename(absolute_file_path))} ✅"
                 )
 
             # tokens for file content and review suggestions are less than threshold
@@ -179,7 +179,7 @@ def apply_review(
                         max_completions_tokens,
                         programming_language,
                     ),
-                    "Applying changes... 🔧",
+                    "Applying changes...🔧",
                 )
                 reviewed_git_diff = formatter.extract_content_from_markdown_code_block(
                     reviewed_git_diff
@@ -189,8 +189,8 @@ def apply_review(
                     if reviewed_git_diff:
                         file.write(reviewed_git_diff)
                         print(
-                            "Successfully applied review changes "
-                            + f"{os.path.basename(absolute_file_path)} ✅"
+                            "Successfully applied review changes to"
+                            + f"{utils.get_bold_text(os.path.basename(absolute_file_path))} ✅"
                         )
 
     except FileNotFoundError:
@@ -227,7 +227,7 @@ def request_review_changes(code_with_suggestions, api_key, programming_language)
             4096 - message_tokens,
             programming_language,
         ),
-        "Applying changes... 🔧",
+        "Applying changes...🔧",
     )
 
 

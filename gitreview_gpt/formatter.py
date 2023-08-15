@@ -2,7 +2,7 @@ import re
 import textwrap
 import os
 import json
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 
 class CodeChunk:
@@ -15,7 +15,9 @@ class CodeChunk:
 # Format the git diff into a format that can be used by the GPT-3.5 API
 # Add line numbers to the diff
 # Split the diff into chunks per file
-def format_git_diff(diff_text: str) -> Tuple[str, dict, dict, list, list]:
+def format_git_diff(
+    diff_text: str,
+) -> Tuple[str, Dict[str, str], Dict[int, Dict[str, str]], List[str], List[str]]:
     git_diff_formatted = ""
     git_diff_file_chunks = {}
     git_diff_code_block_chunks = {}

@@ -33,19 +33,22 @@ def print_review_from_response_json(feedback_json):
 def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks):
     if review_json is not None:
         print_review_from_response_json(review_json)
-        if not utils.has_unstaged_changes():
-            for index, file in enumerate(review_json):
+        for index, file in enumerate(review_json):
+            if not utils.has_unstaged_changes(file_paths[index]):
                 if review_json[file]:
-                    reviewer.apply_review(
-                        api_key,
-                        os.path.abspath(file_paths[index]),
-                        review_json[file],
-                        code_change_chunks[index],
-                    )
-        else:
-            print(
-                "There are unstaged changes. Please commit or stage them before applying the review changes."
-            )
+                    print(f"Apply changes to {utils.get_bold_text(file)}? (y/n)")
+                    apply_changes = input().lower() == "y"
+                    if apply_changes:
+                        reviewer.apply_review(
+                            api_key,
+                            os.path.abspath(file_paths[index]),
+                            review_json[file],
+                            code_change_chunks[index],
+                        )
+            else:
+                print(
+                    f"There are unstaged changes in {file}. Please commit or stage them before applying the review changes."
+                )
 
 
 def run():
@@ -61,9 +64,16 @@ def run():
         "--branch", type=str, help="Review changes against a specific branch"
     )
     # parser.add_argument(
+    #     "--autonomous",
+    #     action="store_true",
+    #     help="Autonomous mode. Review all changes and apply them to the files "
+    #     + "automatically without asking for confirmation. "
+    #     + "Changes will be applied only if there are no unstaged changes "
+    #     + "to prevent overriding your changes.",
+    # )
+    # parser.add_argument(
     #     "--gpt4", action="store_true", help="Use GPT-4 (default: GPT-3)"
     # )
-    # parser.add_argument("--autonomous", action="store_true", help="Autonomous mode")
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -114,24 +124,24 @@ def run():
 
             # iterate over the file chunks in the git diff
             for index, value in enumerate(diff_file_chunks.values()):
-                print(f"Review file \033[01m{file_names[index]}\033[0m? (y/n)")
-                user_input = input()
+                print(f"Review file {utils.get_bold_text(file_names[index])}? (y/n)")
+                user_input = input().lower()
                 if user_input == "n":
                     continue
-
-                file_tokens = utils.count_tokens(value)
-                if file_tokens > 3072:
-                    print(
-                        "TODO: token count exceeds 3072 for a file. Split file changes into chunk of changes."
+                if user_input == "y":
+                    file_tokens = utils.count_tokens(value)
+                    if file_tokens > 3072:
+                        print(
+                            "TODO: token count exceeds 3072 for a file. Split file changes into chunk of changes."
+                        )
+                        exit()
+                    review_json = reviewer.request_review(api_key, value)
+                    apply_review_to_file(
+                        api_key,
+                        review_json,
+                        [file_paths[index]],
+                        [code_change_chunks[index]],
                     )
-                    exit()
-                review_json = reviewer.request_review(api_key, value)
-                apply_review_to_file(
-                    api_key,
-                    review_json,
-                    [file_paths[index]],
-                    [code_change_chunks[index]],
-                )
 
         # Review the changes in one request
         else:
@@ -147,7 +157,7 @@ def run():
         print("✨ Commit Message ✨")
         print(commit_message)
         print("Do you want to commit the changes? (y/n)")
-        user_input = input()
+        user_input = input().lower()
 
         if user_input == "y":
             # Commit the changes

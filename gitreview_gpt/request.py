@@ -15,17 +15,26 @@ def send_request(api_key, payload, spinner_text):
     Returns:
         str: The review summary if successful, or an error message if unsuccessful.
     """
-    payload_json = json.dumps(payload).replace("'", r"'\''")
+    payload_json = json.dumps(payload).replace("'", r"'''")
 
     spinner = yaspin()
     spinner.text = spinner_text
     spinner.start()
 
-    curl_command = f'curl -X POST "https://api.openai.com/v1/chat/completions" -H "Authorization: Bearer {api_key}" -H "Content-Type: application/json" -d \'{payload_json}\''
+    curl_command = [
+        "curl",
+        "-X",
+        "POST",
+        "https://api.openai.com/v1/chat/completions",
+        "-H",
+        f"Authorization: Bearer {api_key}",
+        "-H",
+        "Content-Type: application/json",
+        "-d",
+        payload_json,
+    ]
 
-    curl_output = subprocess.run(
-        curl_command, shell=True, capture_output=True, text=True
-    )
+    curl_output = subprocess.run(curl_command, capture_output=True, text=True)
 
     spinner.stop()
 

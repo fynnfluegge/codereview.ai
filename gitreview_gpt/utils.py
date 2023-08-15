@@ -78,13 +78,17 @@ def count_tokens(text):
     return len(tokenized)
 
 
+def get_bold_text(text):
+    return f"\033[01m{text}\033[0m"
+
+
 def get_git_repo_root():
     return subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"], universal_newlines=True
     ).strip()
 
 
-def has_unstaged_changes():
+def has_unstaged_changes(file):
     try:
         # Run the "git diff --quiet" command and capture its output
         subprocess.check_output(["git", "diff", "--quiet"])
