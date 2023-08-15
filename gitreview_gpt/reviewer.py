@@ -48,7 +48,9 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
                 except ValueError:
                     print("Review result could not be repaired.")
                     print(review_result)
-                    print("Feel free to create an issue on GitHub.")
+                    print(
+                        "Feel free to create an issue at https://github.com/fynnfluegge/codereview-agi/issues"
+                    )
                     return None
 
     return review_json
