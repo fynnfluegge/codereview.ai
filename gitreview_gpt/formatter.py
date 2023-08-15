@@ -17,7 +17,9 @@ class CodeChunk:
 # Split the diff into chunks per file
 def format_git_diff(
     diff_text: str,
-) -> Tuple[str, Dict[str, str], Dict[int, Dict[str, str]], List[str], List[str]]:
+) -> Tuple[
+    str, Dict[str, str], Dict[int, Dict[str, List[CodeChunk]]], List[str], List[str]
+]:
     git_diff_formatted = ""
     git_diff_file_chunks = {}
     git_diff_code_block_chunks = {}
