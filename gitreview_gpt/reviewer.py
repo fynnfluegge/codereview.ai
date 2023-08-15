@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Any, Dict
 import gitreview_gpt.prompt as prompt
 import gitreview_gpt.formatter as formatter
@@ -37,7 +38,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
                         review_result, e, max_tokens
                     )
                     review_result = request.send_request(
-                        api_key, payload, "Repairing..."
+                        api_key, payload, "Repairing... 🔧"
                     )
                     review_json = formatter.parse_review_result(
                         formatter.extract_content_from_markdown_code_block(
@@ -123,8 +124,8 @@ def apply_review(
                                 # split into code_chunk_chunks
                                 # print(chunk["code"])
                                 # print(chunk["suggestions"])
-                                print("chunk_tokens: " + str(chunk_tokens))
-                                print("TODO: split chunk into smaller chunks")
+                                # print("chunk_tokens: " + str(chunk_tokens))
+                                # print("TODO: split chunk into smaller chunks")
                                 pass
 
                         # else merge chunk with current payload if
@@ -157,7 +158,14 @@ def apply_review(
                 code_lines: Dict[int, str] = formatter.code_block_to_dict(
                     "".join(reviewed_code)
                 )
+                print("".join(reviewed_code))
+                print("---------------")
+                print(code_lines)
                 utils.override_lines_in_file(absolute_file_path, code_lines)
+                print(
+                    "Successfully applied review changes "
+                    + f"{os.path.basename(absolute_file_path)} ✅"
+                )
 
             # tokens for file content and review suggestions are less than threshold
             # send request for file content and review suggestions
@@ -171,7 +179,7 @@ def apply_review(
                         max_completions_tokens,
                         programming_language,
                     ),
-                    "Applying changes...",
+                    "Applying changes... 🔧",
                 )
                 reviewed_git_diff = formatter.extract_content_from_markdown_code_block(
                     reviewed_git_diff
@@ -180,7 +188,10 @@ def apply_review(
                 with open(absolute_file_path, "w") as file:
                     if reviewed_git_diff:
                         file.write(reviewed_git_diff)
-                        print(f"Successfully applied review changes to {file.name} ✅")
+                        print(
+                            "Successfully applied review changes "
+                            + f"{os.path.basename(absolute_file_path)} ✅"
+                        )
 
     except FileNotFoundError:
         print(f"File '{absolute_file_path}' not found.")
@@ -216,7 +227,7 @@ def request_review_changes(code_with_suggestions, api_key, programming_language)
             4096 - message_tokens,
             programming_language,
         ),
-        "Applying changes...",
+        "Applying changes... 🔧",
     )
 
 

@@ -156,6 +156,8 @@ def remove_unused_suggestions(review_result):
             or "more descriptive" in feedback.lower()
             or "more specific" in feedback.lower()
             or "never used" in feedback.lower()
+            or "into smaller functions" in feedback.lower()
+            or "to a separate function" in feedback.lower()
         )
 
     # Filter out the entries based on the condition

@@ -24,7 +24,28 @@ def get_git_diff(staged, branch):
 def print_review_from_response_json(feedback_json):
     print("✨ Review Result ✨")
     for file in feedback_json:
-        print(formatter.draw_box(file, feedback_json[file]))
+        if feedback_json[file]:
+            print(formatter.draw_box(file, feedback_json[file]))
+        else:
+            print("No issues found in " + file)
+
+
+def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks):
+    if review_json is not None:
+        print_review_from_response_json(review_json)
+        if not utils.has_unstaged_changes():
+            for index, file in enumerate(review_json):
+                if review_json[file]:
+                    reviewer.apply_review(
+                        api_key,
+                        os.path.abspath(file_paths[index]),
+                        review_json[file],
+                        code_change_chunks[index],
+                    )
+        else:
+            print(
+                "There are unstaged changes. Please commit or stage them before applying the review changes."
+            )
 
 
 def run():
@@ -80,7 +101,6 @@ def run():
     ) = formatter.format_git_diff(diff_text)
 
     git_diff_token_count = utils.count_tokens(formatted_diff)
-    git_root = utils.get_git_repo_root()
 
     if args.action == "review":
         review_files_separately = git_diff_token_count > 3072
@@ -106,37 +126,17 @@ def run():
                     )
                     exit()
                 review_json = reviewer.request_review(api_key, value)
-                if review_json is not None and review_json != {}:
-                    print_review_from_response_json(review_json)
-                    if not utils.has_unstaged_changes():
-                        reviewer.apply_review(
-                            api_key,
-                            git_root + "/" + file_paths[index],
-                            review_json[file_names[index]],
-                            code_change_chunks[index],
-                        )
-                    else:
-                        print(
-                            "There are unstaged changes. Please commit or stage them before applying the review changes."
-                        )
+                apply_review_to_file(
+                    api_key,
+                    review_json,
+                    [file_paths[index]],
+                    [code_change_chunks[index]],
+                )
 
         # Review the changes in one request
         else:
             review_json = reviewer.request_review(api_key, formatted_diff)
-            if review_json is not None and review_json != {}:
-                print_review_from_response_json(review_json)
-                if not utils.has_unstaged_changes():
-                    for index, file in review_json:
-                        reviewer.apply_review(
-                            api_key,
-                            git_root + "/" + file,
-                            review_json[file],
-                            code_change_chunks[index],
-                        )
-                else:
-                    print(
-                        "There are unstaged changes. Please commit or stage them before applying the review changes."
-                    )
+            apply_review_to_file(api_key, review_json, file_paths, code_change_chunks)
 
     # Create a commit message using OpenAI API
     if args.action == "commit":

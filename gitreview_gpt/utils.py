@@ -104,7 +104,7 @@ def override_lines_in_file(file_path, lines_dict):
                 line_index = line_number - 1
 
                 if 0 <= line_index < len(existing_lines):
-                    existing_lines[line_index] = new_line_content
+                    existing_lines[line_index] = new_line_content + "\n"
 
             file.writelines(existing_lines)
     except Exception as e:
