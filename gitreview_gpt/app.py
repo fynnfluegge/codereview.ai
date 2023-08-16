@@ -36,14 +36,14 @@ def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks):
     if review_json is not None:
         print_review_from_response_json(review_json)
         for index, file in enumerate(review_json):
-            if not utils.has_unstaged_changes(file_paths[index]):
+            if not utils.has_unstaged_changes(file_paths[file]):
                 if review_json[file]:
                     print(f"Apply changes to {utils.get_bold_text(file)}? (y/n)")
                     apply_changes = input().lower() == "y"
                     if apply_changes:
                         reviewer.apply_review(
                             api_key,
-                            os.path.abspath(file_paths[index]),
+                            os.path.abspath(file_paths[file]),
                             review_json[file],
                             code_change_chunks[index],
                         )
@@ -127,8 +127,8 @@ def run():
             )
 
             # iterate over the file chunks in the git diff
-            for index, value in enumerate(diff_file_chunks.values()):
-                print(f"Review file {utils.get_bold_text(file_names[index])}? (y/n)")
+            for key, value in diff_file_chunks.items():
+                print(f"Review file {utils.get_bold_text(key)}? (y/n)")
                 user_input = input().lower()
                 if user_input == "n":
                     continue
@@ -144,8 +144,8 @@ def run():
                     apply_review_to_file(
                         api_key,
                         review_json,
-                        [file_paths[index]],
-                        [code_change_chunks[index]],
+                        {key: file_paths[key]},
+                        [code_change_chunks[key]],
                     )
 
         # Review the changes in one request

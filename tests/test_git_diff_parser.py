@@ -126,7 +126,7 @@ class TestFormatter(unittest.TestCase):
         )
 
         self.file_chunks_fixture = {
-            0: "app.py\n"
+            "app.py": "app.py\n"
             + "@@ -3,7 +3,6 @@ import subprocess\n"
             + "3 import json\n"
             + "4 import tiktoken\n"
@@ -159,7 +159,7 @@ class TestFormatter(unittest.TestCase):
             + "235 \n"
             + "236      # Review the changes in one request\n"
             + "237      else:\n",
-            1: "formatter.py\n"
+            "formatter.py": "formatter.py\n"
             + "@@ -1,6 +1,18 @@\n"
             + "1 import re\n"
             + "2 import textwrap\n"
@@ -181,7 +181,7 @@ class TestFormatter(unittest.TestCase):
             + "18 # Format the git diff into a format that can be used by the GPT-3.5 API\n",
         }
         self.code_change_chunks_fixture = {
-            0: {
+            "app.py": {
                 "": [
                     formatter.CodeChunk(
                         start_line=3,
@@ -231,7 +231,7 @@ class TestFormatter(unittest.TestCase):
                     ),
                 ],
             },
-            1: {
+            "formatter.py": {
                 "": [
                     formatter.CodeChunk(
                         start_line=1,
@@ -263,10 +263,10 @@ class TestFormatter(unittest.TestCase):
             "app.py",
             "formatter.py",
         ]
-        self.file_paths_fixture = [
-            "gitreview_gpt/app.py",
-            "gitreview_gpt/formatter.py",
-        ]
+        self.file_paths_fixture = {
+            "app.py": "gitreview_gpt/app.py",
+            "formatter.py": "gitreview_gpt/formatter.py",
+        }
 
     def test_format_git_diff(self):
         (
@@ -282,18 +282,18 @@ class TestFormatter(unittest.TestCase):
         self.assertEqual(file_names, self.file_names_fixture)
         self.assertEqual(file_paths, self.file_paths_fixture)
         self.assertEqual(
-            code_change_chunks[0][""][0].code,
-            self.code_change_chunks_fixture[0][""][0].code,
+            code_change_chunks["app.py"][""][0].code,
+            self.code_change_chunks_fixture["app.py"][""][0].code,
         )
         self.assertEqual(
-            code_change_chunks[0]["run():"][0].code,
-            self.code_change_chunks_fixture[0]["run():"][0].code,
+            code_change_chunks["app.py"]["run():"][0].code,
+            self.code_change_chunks_fixture["app.py"]["run():"][0].code,
         )
         self.assertEqual(
-            code_change_chunks[0]["run():"][1].code,
-            self.code_change_chunks_fixture[0]["run():"][1].code,
+            code_change_chunks["app.py"]["run():"][1].code,
+            self.code_change_chunks_fixture["app.py"]["run():"][1].code,
         )
         self.assertEqual(
-            code_change_chunks[1][""][0].code,
-            self.code_change_chunks_fixture[1][""][0].code,
+            code_change_chunks["formatter.py"][""][0].code,
+            self.code_change_chunks_fixture["formatter.py"][""][0].code,
         )

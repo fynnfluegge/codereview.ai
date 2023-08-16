@@ -12,19 +12,30 @@ class CodeChunk:
         self.code = code
 
 
+class FileChunk:
+    def __init__(self, file_name, file_path, code_chunks):
+        self.file_name = file_name
+        self.file_path = file_path
+        self.code_chunks = code_chunks
+
+
 # Format the git diff into a format that can be used by the GPT-3.5 API
 # Add line numbers to the diff
 # Split the diff into chunks per file
 def format_git_diff(
     diff_text: str,
 ) -> Tuple[
-    str, Dict[str, str], Dict[int, Dict[str, List[CodeChunk]]], List[str], List[str]
+    str,
+    Dict[str, str],
+    Dict[str, Dict[str, List[CodeChunk]]],
+    List[str],
+    Dict[str, str],
 ]:
     git_diff_formatted = ""
     git_diff_file_chunks = {}
     git_diff_code_block_chunks = {}
     file_names = []
-    file_paths = []
+    file_paths = {}
 
     # Split git diff into chunks with separator +++ line inclusive,
     # the line with the filename
@@ -45,14 +56,19 @@ def format_git_diff(
         # the changes in the file
         pattern = r"(?=@@ -\d+,\d+ \+\d+,\d+ @@)"
         changes_per_file = re.split(pattern, file_chunk)
+        file_name = ""
         for i, code_change_chunk in enumerate(changes_per_file, 1):
             # Skip first chunk (it's the file name)
             if i == 1:
+                file_name = code_change_chunk.rstrip("\n").rsplit("/", 1)[-1]
+                # Skip unmerged added files
+                if file_name == "null":
+                    break
                 git_diff_formatted += code_change_chunk.rsplit("/", 1)[-1]
-                git_diff_file_chunks[j] = code_change_chunk.rsplit("/", 1)[-1]
-                git_diff_code_block_chunks[j] = {}
-                file_names.append(code_change_chunk.rstrip("\n").rsplit("/", 1)[-1])
-                file_paths.append(code_change_chunk[2:].rstrip("\n"))
+                git_diff_file_chunks[file_name] = code_change_chunk.rsplit("/", 1)[-1]
+                git_diff_code_block_chunks[file_name] = {}
+                file_names.append(file_name)
+                file_paths[file_name] = code_change_chunk[2:].rstrip("\n")
                 continue
 
             # Extract the line numbers from the changes pattern
@@ -108,11 +124,13 @@ def format_git_diff(
                 - 1,
                 code=code_chunk_formatted,
             )
-            git_diff_file_chunks[j] += chunk_formatted
-            if optional_selection_marker not in git_diff_code_block_chunks[j]:
-                git_diff_code_block_chunks[j][optional_selection_marker] = [code_chunk]
+            git_diff_file_chunks[file_name] += chunk_formatted
+            if optional_selection_marker not in git_diff_code_block_chunks[file_name]:
+                git_diff_code_block_chunks[file_name][optional_selection_marker] = [
+                    code_chunk
+                ]
             else:
-                git_diff_code_block_chunks[j][optional_selection_marker].append(
+                git_diff_code_block_chunks[file_name][optional_selection_marker].append(
                     code_chunk
                 )
 
