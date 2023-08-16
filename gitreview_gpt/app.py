@@ -9,13 +9,11 @@ import gitreview_gpt.reviewer as reviewer
 
 
 # Return the code changes as a git diff
-def get_git_diff(staged, branch):
+def get_git_diff(branch):
     if not branch:
-        command = ["git", "diff", "--cached"] if staged else ["git", "diff", "HEAD"]
+        command = ["git", "diff"]
     else:
-        command = (
-            ["git", "diff", branch, "--cached"] if staged else ["git", "diff", branch]
-        )
+        command = ["git", "diff", branch, "--cached"]
 
     git_diff = subprocess.run(command, capture_output=True, text=True)
 
@@ -32,15 +30,17 @@ def print_review_from_response_json(feedback_json):
             print("No issues found in " + utils.get_bold_text(file))
 
 
-def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks):
+def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks, guided):
     if review_json is not None:
         print_review_from_response_json(review_json)
         for index, file in enumerate(review_json):
             if not utils.has_unstaged_changes(file_paths[file]):
                 if review_json[file]:
-                    print(f"Apply changes to {utils.get_bold_text(file)}? (y/n)")
-                    apply_changes = input().lower() == "y"
-                    if apply_changes:
+                    apply_changes = False
+                    if guided:
+                        print(f"Apply changes to {utils.get_bold_text(file)}? (y/n)")
+                        apply_changes = input().lower() == "y"
+                    if not guided or apply_changes:
                         reviewer.apply_review(
                             api_key,
                             os.path.abspath(file_paths[file]),
@@ -62,21 +62,18 @@ def run():
         choices=["review", "commit"],
         help="Review changes (review) or create commit message (commit)",
     )
-    parser.add_argument("--staged", action="store_true", help="Review staged changes")
     parser.add_argument(
         "--branch", type=str, help="Review changes against a specific branch"
     )
-    # parser.add_argument(
-    #     "--autonomous",
-    #     action="store_true",
-    #     help="Autonomous mode. Review all changes and apply them to the files "
-    #     + "automatically without asking for confirmation. "
-    #     + "Changes will be applied only if there are no unstaged changes "
-    #     + "to prevent overriding your changes.",
-    # )
-    # parser.add_argument(
-    #     "--gpt4", action="store_true", help="Use GPT-4 (default: GPT-3)"
-    # )
+    parser.add_argument(
+        "--guided",
+        action="store_true",
+        help="Guided mode. "
+        + "Ask for confirmation before reviewing and applying changes for each file.",
+    )
+    parser.add_argument(
+        "--gpt4", action="store_true", help="Use GPT-4 (default: GPT-3.5)"
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -93,16 +90,15 @@ def run():
     diff_text = None
 
     if args.action == "review":
-        diff_text = get_git_diff(args.staged, args.branch)
+        diff_text = get_git_diff(args.branch)
 
     if args.action == "commit":
-        diff_text = get_git_diff(True, None)
+        diff_text = subprocess.run(
+            ["git", "diff", "--cached"], capture_output=True, text=True
+        ).stdout
 
     if not diff_text:
-        if not args.staged:
-            print("No git changes.")
-        else:
-            print("No staged git changes.")
+        print("No git changes.")
         exit()
 
     (
@@ -120,18 +116,19 @@ def run():
         # Check if the token count exceeds the limit of 3072 (1024 tokens for response)
         # if yes, review the files separately
         if review_files_separately:
-            print(
-                "Your changes are large. "
-                + "The Review will be splitted into multiple requests."
-            )
+            if args.guided:
+                print(
+                    "Your changes are large. "
+                    + "The Review will be splitted into multiple requests."
+                )
 
             # iterate over the file chunks in the git diff
             for key, value in diff_file_chunks.items():
-                print(f"Review file {utils.get_bold_text(key)}? (y/n)")
-                user_input = input().lower()
-                if user_input == "n":
-                    continue
-                if user_input == "y":
+                review_file = False
+                if args.guided:
+                    print(f"Review file {utils.get_bold_text(key)}? (y/n)")
+                    review_file = input().lower() == "y"
+                if not args.guided or review_file:
                     file_tokens = utils.count_tokens(value)
                     if file_tokens > 3072:
                         print(
@@ -145,12 +142,15 @@ def run():
                         review_json,
                         {key: file_paths[key]},
                         [code_change_chunks[key]],
+                        args.guided,
                     )
 
         # Review the changes in one request
         else:
             review_json = reviewer.request_review(api_key, formatted_diff)
-            apply_review_to_file(api_key, review_json, file_paths, code_change_chunks)
+            apply_review_to_file(
+                api_key, review_json, file_paths, code_change_chunks, args.guided
+            )
 
     # Create a commit message using OpenAI API
     if args.action == "commit":

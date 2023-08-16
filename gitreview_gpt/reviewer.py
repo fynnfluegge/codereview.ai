@@ -77,7 +77,7 @@ def apply_review(
             tokens = utils.count_tokens(json.dumps(prompt_payload))
             # tokens for file content and review suggestions are greater than threshold
             # split requests into code chunks by selection markers
-            if tokens > 1024 and selection_marker_chunks is not None:
+            if tokens > 2048 and selection_marker_chunks is not None:
                 # initialize reviewed code for applying code changes later a tonce
                 reviewed_code = []
 
@@ -123,12 +123,9 @@ def apply_review(
                             )
                             # if chunk tokens are smaller than threshold
                             # add chunk to code chunks to review
-                            if chunk_tokens <= 1024:
+                            if chunk_tokens <= 2048:
                                 code_chunks_to_review.append(chunk)
                             else:
-                                print("_____CHUNK SKIPPED_____")
-                                print(chunk)
-                                print(chunk_tokens)
                                 # code chunk tokens are greater than threshold
                                 # skip since results are not reliable
                                 pass
@@ -136,10 +133,6 @@ def apply_review(
                 if code_chunks_to_review:
                     code_chunk_count = code_chunks_to_review.__len__()
                     for index, chunk in enumerate(code_chunks_to_review, start=1):
-                        print(
-                            "-----------------------------------------------------------------------------------"
-                        )
-                        print(chunk)
                         reviewed_code_chunks = request_review_changes(
                             chunk,
                             api_key,
@@ -147,8 +140,6 @@ def apply_review(
                             index,
                             code_chunk_count,
                         )
-                        print("#####################")
-                        print(reviewed_code_chunks)
                         add_reviewed_code(reviewed_code_chunks, reviewed_code)
 
                 file.close()
@@ -228,13 +219,9 @@ def request_review_changes(
 
 def add_reviewed_code(review_applied, reviewed_code):
     if review_applied:
-        print("==================REVIEW APPLIED==================")
-        print(review_applied)
         for (
             improved_code_block
         ) in formatter.extract_content_from_multiple_markdown_code_blocks(
             review_applied
         ):
-            print("#####################")
-            print(improved_code_block)
             reviewed_code.append("\n" + improved_code_block)
