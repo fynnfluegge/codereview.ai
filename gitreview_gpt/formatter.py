@@ -283,13 +283,9 @@ def code_block_to_dict(code_block) -> Dict[int, str]:
             try:
                 number_part = parts[0]
                 if ":" in number_part:
-                    number = number_part[:-1]  # Remove colon and convert to int
+                    number_part = number_part[:-1]  # Remove colon and convert to int
 
-                try:
-                    number = int(number_part)
-                except ValueError:
-                    # TODO no line numbers specified. Need to be processed differently
-                    return {}
+                number = int(number_part)
 
                 current_line_number = number
                 parsed_code_block[number] = ""
