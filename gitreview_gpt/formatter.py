@@ -24,17 +24,10 @@ class FileChunk:
 # Split the diff into chunks per file
 def format_git_diff(
     diff_text: str,
-) -> Tuple[
-    str,
-    Dict[str, str],
-    Dict[str, Dict[str, List[CodeChunk]]],
-    List[str],
-    Dict[str, str],
-]:
+) -> Tuple[str, Dict[str, str], Dict[str, Dict[str, List[CodeChunk]]], Dict[str, str],]:
     git_diff_formatted = ""
     git_diff_file_chunks = {}
     git_diff_code_block_chunks = {}
-    file_names = []
     file_paths = {}
 
     # Split git diff into chunks with separator +++ line inclusive,
@@ -67,7 +60,6 @@ def format_git_diff(
                 git_diff_formatted += code_change_chunk.rsplit("/", 1)[-1]
                 git_diff_file_chunks[file_name] = code_change_chunk.rsplit("/", 1)[-1]
                 git_diff_code_block_chunks[file_name] = {}
-                file_names.append(file_name)
                 file_paths[file_name] = code_change_chunk[2:].rstrip("\n")
                 continue
 
@@ -138,7 +130,6 @@ def format_git_diff(
         git_diff_formatted,
         git_diff_file_chunks,
         git_diff_code_block_chunks,
-        file_names,
         file_paths,
     )
 

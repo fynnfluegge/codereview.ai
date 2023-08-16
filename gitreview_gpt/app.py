@@ -109,7 +109,6 @@ def run():
         formatted_diff,
         diff_file_chunks,
         code_change_chunks,
-        file_names,
         file_paths,
     ) = formatter.format_git_diff(diff_text)
 

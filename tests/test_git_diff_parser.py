@@ -259,10 +259,6 @@ class TestFormatter(unittest.TestCase):
                 ],
             },
         }
-        self.file_names_fixture = [
-            "app.py",
-            "formatter.py",
-        ]
         self.file_paths_fixture = {
             "app.py": "gitreview_gpt/app.py",
             "formatter.py": "gitreview_gpt/formatter.py",
@@ -273,13 +269,11 @@ class TestFormatter(unittest.TestCase):
             formatted,
             file_chunks,
             code_change_chunks,
-            file_names,
             file_paths,
         ) = formatter.format_git_diff(self.git_diff)
 
         self.assertEqual(formatted, self.git_diff_formatted_fixture)
         self.assertEqual(file_chunks, self.file_chunks_fixture)
-        self.assertEqual(file_names, self.file_names_fixture)
         self.assertEqual(file_paths, self.file_paths_fixture)
         self.assertEqual(
             code_change_chunks["app.py"][""][0].code,
