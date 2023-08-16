@@ -1,7 +1,7 @@
 def get_commit_message_prompt(git_diff_text):
     return {
         "model": "gpt-3.5-turbo",
-        "max_tokens": 128,
+        "max_tokens": 256,
         "temperature": 0.5,
         "n": 1,
         "stop": None,
@@ -9,7 +9,7 @@ def get_commit_message_prompt(git_diff_text):
             {
                 "role": "user",
                 "content": "Here are my code changes. Provide a commit message for my changes. Provide only the commit message in your response."
-                + "Don't include any explanations in your response.",
+                + "Don't include any explanations in your response. The commit message should consist of a header and a body. ",
             },
             {
                 "role": "assistant",
@@ -95,7 +95,6 @@ def get_apply_review_for_file_prompt(
                 + f"{programming_language} code:\n"
                 + "```\n"
                 + code
-                + "\n"
                 + "```\n"
                 + "Review comments:\n"
                 + review_comments
@@ -108,12 +107,12 @@ def get_apply_review_for_file_prompt(
 
 
 def get_apply_review_for_git_diff_chunk_promp(
-    gi_diff_chunk, review_comments, max_tokens, programming_language
+    code_chunk, review_comments, max_tokens, programming_language
 ):
     return {
         "model": "gpt-3.5-turbo",
         "max_tokens": max_tokens,
-        "temperature": 0.25,
+        "temperature": 0.4,
         "n": 1,
         "stop": None,
         "messages": [
@@ -122,15 +121,14 @@ def get_apply_review_for_git_diff_chunk_promp(
                 "content": f"Review the following {programming_language} code snippet and address the review comments below:\n"
                 + f"{programming_language} code:\n"
                 + "```\n"
-                + gi_diff_chunk
-                + "\n"
+                + code_chunk
                 + "```\n"
                 + "Review comments:\n"
                 + review_comments
                 + "\n"
                 + f"Apply the necessary changes to the {programming_language} code based on the review comments. "
-                + f"Provide only your modified lines of code in the response. "
-                + "Add the line numbers of the updated code at the start of each line. "
+                + "Add line numbers to the code to indicate where the changes should be made. "
+                + "Preserve the indentation of the code. "
                 + "Don't include any explanations in your response.",
             },
         ],

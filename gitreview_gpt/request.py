@@ -15,7 +15,7 @@ def send_request(api_key, payload, spinner_text):
     Returns:
         str: The review summary if successful, or an error message if unsuccessful.
     """
-    payload_json = json.dumps(payload).replace("'", r"'''")
+    payload_json = json.dumps(payload)
 
     spinner = yaspin()
     spinner.text = spinner_text

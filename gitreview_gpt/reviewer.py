@@ -14,7 +14,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
         json.dumps(prompt.get_review_prompt(code_to_review, 4096))
     )
     payload = prompt.get_review_prompt(code_to_review, max_tokens)
-    review_result = request.send_request(api_key, payload, "Reviewing...🤖")
+    review_result = request.send_request(api_key, payload, "Reviewing...🔍")
     if not review_result:
         return None
     try:
@@ -80,15 +80,16 @@ def apply_review(
             if tokens > 1024 and selection_marker_chunks is not None:
                 # initialize reviewed code for applying code changes later a tonce
                 reviewed_code = []
+
                 # create line number stack for  merging code chunk with line numbers
                 line_number_stack = []
                 for line_number in reversed(review_json.keys()):
                     line_number_stack.append(utils.parse_string_to_int(line_number))
-                # Split requests into changes chunks by selection markers
-                current_payload = []
-                # Initialize current tokens with tokens for prompt payload
-                # with empty code chunks and review suggestions
-                current_tokens = utils.count_tokens(
+
+                code_chunks_to_review = []
+
+                # prompt offset tokens
+                prompt_tokens = utils.count_tokens(
                     json.dumps(
                         prompt.get_apply_review_for_file_prompt(
                             "",
@@ -98,9 +99,10 @@ def apply_review(
                         )
                     )
                 )
-                initial_tokens = current_tokens
-                code_chunk_count = selection_marker_chunks.__len__()
-                for index, code_chunk in enumerate(selection_marker_chunks.values()):
+
+                # iterate over code chunks by selection markers
+                # and merge them with review suggestions by line numbers
+                for code_chunk in selection_marker_chunks.values():
                     # if there are no more line numbers in stack,
                     # there are no more review suggestions, break loop
                     if not line_number_stack:
@@ -115,65 +117,47 @@ def apply_review(
 
                     # there are review suggestions in that code chunk
                     if chunk_payload:
-                        chunk_tokens = utils.count_tokens(json.dumps(chunk_payload))
-
-                        # if the chunk is too big to be sent in one request
-                        # send request for each code chunk of selection marker
-                        if chunk_tokens + initial_tokens > 1024:
-                            for chunk in chunk_payload:
-                                # TODO split into code_chunk_chunks
+                        for chunk in chunk_payload:
+                            chunk_tokens = (
+                                utils.count_tokens(json.dumps(chunk)) + prompt_tokens
+                            )
+                            # if chunk tokens are smaller than threshold
+                            # add chunk to code chunks to review
+                            if chunk_tokens <= 1024:
+                                code_chunks_to_review.append(chunk)
+                            else:
+                                print("_____CHUNK SKIPPED_____")
+                                print(chunk)
+                                print(chunk_tokens)
+                                # code chunk tokens are greater than threshold
+                                # skip since results are not reliable
                                 pass
-                            continue
 
-                        # else merge chunk with current payload if
-                        # merged tokens still under threshold
-                        if current_tokens + chunk_tokens < 1024:
-                            current_tokens += chunk_tokens
-                            current_payload.extend(chunk_payload)
-
-                        # else send request for current payload
-                        # and initialize new payload with current chunk afterwards
-                        else:
-                            if current_payload:
-                                print("CURRENT PAYLOAD")
-                                print(current_payload)
-                                reviewed_code_chunks = request_review_changes(
-                                    current_payload,
-                                    api_key,
-                                    programming_language,
-                                    index,
-                                    code_chunk_count,
-                                )
-                                print("REVIEWED CODE CHUNKS")
-                                print(reviewed_code_chunks)
-                                print("................")
-                                add_reviewed_code(reviewed_code_chunks, reviewed_code)
-                                current_payload = []
-                                current_payload.extend(chunk_payload)
-                                current_tokens = chunk_tokens + initial_tokens
-
-                # If there are still code chunks in current payload
-                # send final request
-                if current_payload:
-                    reviewed_code_chunks = request_review_changes(
-                        current_payload,
-                        api_key,
-                        programming_language,
-                        code_chunk_count,
-                        code_chunk_count,
-                    )
-                    add_reviewed_code(reviewed_code_chunks, reviewed_code)
+                if code_chunks_to_review:
+                    code_chunk_count = code_chunks_to_review.__len__()
+                    for index, chunk in enumerate(code_chunks_to_review, start=1):
+                        print(
+                            "-----------------------------------------------------------------------------------"
+                        )
+                        print(chunk)
+                        reviewed_code_chunks = request_review_changes(
+                            chunk,
+                            api_key,
+                            programming_language,
+                            index,
+                            code_chunk_count,
+                        )
+                        print("#####################")
+                        print(reviewed_code_chunks)
+                        add_reviewed_code(reviewed_code_chunks, reviewed_code)
 
                 file.close()
                 code_lines: Dict[int, str] = formatter.code_block_to_dict(
                     "".join(reviewed_code)
                 )
-                print("".join(reviewed_code))
-                print("---------------")
-                print(code_lines)
                 utils.override_lines_in_file(absolute_file_path, code_lines)
                 print(
-                    "Successfully applied review changes to"
+                    "Successfully applied review changes to "
                     + f"{utils.get_bold_text(os.path.basename(absolute_file_path))} ✅"
                 )
 
@@ -199,7 +183,7 @@ def apply_review(
                     if reviewed_git_diff:
                         file.write(reviewed_git_diff)
                         print(
-                            "Successfully applied review changes to"
+                            "Successfully applied review changes to "
                             + f"{utils.get_bold_text(os.path.basename(absolute_file_path))} ✅"
                         )
 
@@ -214,18 +198,17 @@ def apply_review(
 
 
 def request_review_changes(
-    code_with_suggestions, api_key, programming_language, current_step, total_steps
+    code_chunk_with_suggestions,
+    api_key,
+    programming_language,
+    current_step,
+    total_steps,
 ):
-    (
-        code_chunk,
-        suggestions,
-    ) = formatter.merge_code_chunks_and_suggestions(code_with_suggestions)
-
     message_tokens = utils.count_tokens(
         json.dumps(
             prompt.get_apply_review_for_git_diff_chunk_promp(
-                code_chunk,
-                json.dumps(suggestions),
+                code_chunk_with_suggestions["code"],
+                json.dumps(code_chunk_with_suggestions["suggestions"]),
                 4096,
                 programming_language,
             )
@@ -234,8 +217,8 @@ def request_review_changes(
     return request.send_request(
         api_key,
         prompt.get_apply_review_for_git_diff_chunk_promp(
-            code_chunk,
-            json.dumps(suggestions),
+            code_chunk_with_suggestions["code"],
+            json.dumps(code_chunk_with_suggestions["suggestions"]),
             4096 - message_tokens,
             programming_language,
         ),
@@ -245,9 +228,13 @@ def request_review_changes(
 
 def add_reviewed_code(review_applied, reviewed_code):
     if review_applied:
+        print("==================REVIEW APPLIED==================")
+        print(review_applied)
         for (
             improved_code_block
         ) in formatter.extract_content_from_multiple_markdown_code_blocks(
             review_applied
         ):
+            print("#####################")
+            print(improved_code_block)
             reviewed_code.append("\n" + improved_code_block)

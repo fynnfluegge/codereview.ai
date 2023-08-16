@@ -171,6 +171,8 @@ def remove_unused_suggestions(review_result):
             or "never used" in feedback.lower()
             or "into smaller functions" in feedback.lower()
             or "to a separate function" in feedback.lower()
+            or "extracting the logic" in feedback.lower()
+            or "extract the logic" in feedback.lower()
         )
 
     # Filter out the entries based on the condition
@@ -250,16 +252,6 @@ def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stac
     return hunk_review_payload
 
 
-def merge_code_chunks_and_suggestions(code_chunks_with_suggestions):
-    code_chunks = ""
-    suggestions = {}
-    for code_chunk_with_suggestions in code_chunks_with_suggestions:
-        code_chunks += code_chunk_with_suggestions["code"]
-        for line in code_chunk_with_suggestions["suggestions"]:
-            suggestions[line] = code_chunk_with_suggestions["suggestions"][line]
-    return code_chunks, suggestions
-
-
 def code_block_to_dict(code_block) -> Dict[int, str]:
     lines = code_block.strip().splitlines()
     parsed_code_block = {}
@@ -272,21 +264,33 @@ def code_block_to_dict(code_block) -> Dict[int, str]:
         if len(parts) > 1:
             number_part = parts[0]
             remaining_part = parts[1]
-            remaining_part = remaining_part.replace(" ", "", 1)
+            if remaining_part.startswith(" "):
+                remaining_part = remaining_part[1:]
+            if remaining_part.startswith(" "):
+                remaining_part = remaining_part[1:]
             if ":" in number_part:
-                number = int(number_part[:-1])  # Remove colon and convert to int
-            else:
-                number = int(number_part)
-            current_line_number = number
+                number_part = number_part[:-1]  # Remove colon and convert to int
 
+            try:
+                number = int(number_part)
+            except ValueError:
+                # TODO no line numbers specified. Need to be processed differently
+                return {}
+
+            current_line_number = number
             parsed_code_block[number] = remaining_part
         if len(parts) == 1:
             try:
                 number_part = parts[0]
                 if ":" in number_part:
-                    number = int(number_part[:-1])  # Remove colon and convert to int
-                else:
+                    number = number_part[:-1]  # Remove colon and convert to int
+
+                try:
                     number = int(number_part)
+                except ValueError:
+                    # TODO no line numbers specified. Need to be processed differently
+                    return {}
+
                 current_line_number = number
                 parsed_code_block[number] = ""
             except ValueError:
