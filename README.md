@@ -36,7 +36,7 @@ Get review suggestions to changes in your git working directory or to any commit
 - `rgpt review --guided`: User needs to confirm review process for each file. Useful if not all files should get reviewed.
 - `rgpt review --target $BRANCH`: Reviews all committed changes in your current branch compared to `$BRANCH`.
 - `rgpt review --gpt4`: Use GPT-4 model (default is GPT-3.5).
-- `rgpt commit`: Creates a commit message for your staged changes.
+- `rgpt commit`: Generates a commit message for your staged changes.
 
 ## 📋 Requirements
 
