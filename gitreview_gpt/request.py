@@ -1,54 +1,33 @@
-import json
-import subprocess
+import requests
 from yaspin import yaspin
 
 
 def send_request(api_key, payload, spinner_text):
-    """
-    Send request with prompt as payload to OpenAI completions API.
-
-    Args:
-        api_key (str): The API key for authentication.
-        payload (dict): The payload to send as JSON.
-        spinner_text (str): The text to display in the spinner.
-
-    Returns:
-        str: The review summary if successful, or an error message if unsuccessful.
-    """
-    payload_json = json.dumps(payload)
+    payload_json = payload
 
     spinner = yaspin()
     spinner.text = spinner_text
     spinner.start()
 
-    curl_command = [
-        "curl",
-        "-X",
-        "POST",
-        "https://api.openai.com/v1/chat/completions",
-        "-H",
-        f"Authorization: Bearer {api_key}",
-        "-H",
-        "Content-Type: application/json",
-        "-d",
-        payload_json,
-    ]
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-    curl_output = subprocess.run(curl_command, capture_output=True, text=True)
-
-    spinner.stop()
-
-    if curl_output.returncode == 0:
-        json_response = json.loads(curl_output.stdout)
-        try:
-            review_summary = (
-                json_response["choices"][0]["message"]["content"]
-                .encode()
-                .decode("unicode_escape")
-            )
-            return review_summary
-        except KeyError:
-            print(json_response["error"]["message"])
-            return None
-    else:
-        return f"Error: {curl_output.stderr.strip()}"
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload_json,
+        )
+        response.raise_for_status()
+        json_response = response.json()
+        review_summary = (
+            json_response["choices"][0]["message"]["content"]
+            .encode()
+            .decode("unicode_escape")
+        )
+        return review_summary
+    except (KeyError, requests.exceptions.RequestException) as e:
+        print("💥 An error occured while requesting a review.")
+        print(str(e))
+        return None
+    finally:
+        spinner.stop()

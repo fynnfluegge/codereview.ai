@@ -32,7 +32,6 @@ def format_git_diff(
 
     # Split git diff into chunks with separator +++ line inclusive,
     # the line with the filename
-    pattern = r"(?=^(\+\+\+).*$)"
     parent_chunks = re.split(r"\n\+{3,}\s", diff_text, re.MULTILINE)
     for j, file_chunk in enumerate(parent_chunks, -1):
         # Skip first chunk (it's the head info)
@@ -47,8 +46,7 @@ def format_git_diff(
 
         # Split chunk into chunks with separator @@ -n,n +n,n @@ inclusive,
         # the changes in the file
-        pattern = r"(?=@@ -\d+,\d+ \+\d+,\d+ @@)"
-        changes_per_file = re.split(pattern, file_chunk)
+        changes_per_file = re.split(r"(?=@@ -\d+,\d+ \+\d+,\d+ @@)", file_chunk)
         file_name = ""
         for i, code_change_chunk in enumerate(changes_per_file, 1):
             # Skip first chunk (it's the file name)

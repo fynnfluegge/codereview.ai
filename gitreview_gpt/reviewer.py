@@ -9,12 +9,12 @@ import gitreview_gpt.request as request
 
 # Retrieve review from openai completions api
 # Process response and send repair request if json has invalid format
-def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
-    max_tokens = 4096 - utils.count_tokens(
-        json.dumps(prompt.get_review_prompt(code_to_review, 4096))
+def request_review(api_key, code_to_review, gpt_model) -> Dict[str, Any] | None:
+    max_tokens = gpt_model.value - utils.count_tokens(
+        json.dumps(prompt.get_review_prompt(code_to_review, gpt_model.value, gpt_model))
     )
-    payload = prompt.get_review_prompt(code_to_review, max_tokens)
-    review_result = request.send_request(api_key, payload, "Reviewing...🔍")
+    payload = prompt.get_review_prompt(code_to_review, max_tokens, gpt_model)
+    review_result = request.send_request(api_key, payload, "🔍 Reviewing...")
     if not review_result:
         return None
     try:
@@ -35,10 +35,10 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
                 try:
                     print("Review result has invalid format. It will be repaired.")
                     payload = prompt.get_review_repair_prompt(
-                        review_result, e, max_tokens
+                        review_result, e, max_tokens, gpt_model
                     )
                     review_result = request.send_request(
-                        api_key, payload, "Repairing...🔧"
+                        api_key, payload, "🔧 Repairing..."
                     )
                     review_json = formatter.parse_review_result(
                         formatter.extract_content_from_markdown_code_block(
@@ -46,7 +46,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
                         )
                     )
                 except ValueError:
-                    print("Review result could not be repaired.")
+                    print("💥 Review result could not be repaired.")
                     print(review_result)
                     print(
                         "Feel free to create an issue at https://github.com/fynnfluegge/codereview-agi/issues"
@@ -59,7 +59,7 @@ def request_review(api_key, code_to_review) -> Dict[str, Any] | None:
 # Retrieve code changes from openai completions api
 # for one specific file with the related review
 def apply_review(
-    api_key, absolute_file_path, review_json, selection_marker_chunks: Dict
+    api_key, absolute_file_path, review_json, selection_marker_chunks: Dict, gpt_model
 ):
     try:
         with open(absolute_file_path, "r") as file:
@@ -72,12 +72,16 @@ def apply_review(
                 ),
             }
             prompt_payload = prompt.get_apply_review_for_file_prompt(
-                file_content, json.dumps(payload["reviews"]), 4096, programming_language
+                file_content,
+                json.dumps(payload["reviews"]),
+                gpt_model.value,
+                programming_language,
+                gpt_model,
             )
             tokens = utils.count_tokens(json.dumps(prompt_payload))
             # tokens for file content and review suggestions are greater than threshold
             # split requests into code chunks by selection markers
-            if tokens > 2048 and selection_marker_chunks is not None:
+            if tokens > gpt_model.value / 2 and selection_marker_chunks is not None:
                 # initialize reviewed code for applying code changes later a tonce
                 reviewed_code = []
 
@@ -94,8 +98,9 @@ def apply_review(
                         prompt.get_apply_review_for_file_prompt(
                             "",
                             "",
-                            4096,
+                            gpt_model.value,
                             programming_language,
+                            gpt_model,
                         )
                     )
                 )
@@ -123,7 +128,7 @@ def apply_review(
                             )
                             # if chunk tokens are smaller than threshold
                             # add chunk to code chunks to review
-                            if chunk_tokens <= 2048:
+                            if chunk_tokens <= gpt_model.value / 2:
                                 code_chunks_to_review.append(chunk)
                             else:
                                 # code chunk tokens are greater than threshold
@@ -136,6 +141,7 @@ def apply_review(
                         reviewed_code_chunks = request_review_changes(
                             chunk,
                             api_key,
+                            gpt_model,
                             programming_language,
                             index,
                             code_chunk_count,
@@ -149,13 +155,13 @@ def apply_review(
                 utils.override_lines_in_file(absolute_file_path, code_lines)
                 print(
                     "Successfully applied review changes to "
-                    + f"{utils.get_bold_text(os.path.basename(absolute_file_path))} ✅"
+                    + f"✅ {utils.get_bold_text(os.path.basename(absolute_file_path))}"
                 )
 
             # tokens for file content and review suggestions are less than threshold
             # send request for file content and review suggestions
             else:
-                max_completions_tokens = 4096 - tokens
+                max_completions_tokens = gpt_model.value - tokens
                 reviewed_git_diff = request.send_request(
                     api_key,
                     prompt.get_apply_review_for_file_prompt(
@@ -163,8 +169,9 @@ def apply_review(
                         json.dumps(payload["reviews"]),
                         max_completions_tokens,
                         programming_language,
+                        gpt_model,
                     ),
-                    "Applying changes...🔧",
+                    "🔧 Applying changes...",
                 )
                 reviewed_git_diff = formatter.extract_content_from_markdown_code_block(
                     reviewed_git_diff
@@ -175,15 +182,15 @@ def apply_review(
                         file.write(reviewed_git_diff)
                         print(
                             "Successfully applied review changes to "
-                            + f"{utils.get_bold_text(os.path.basename(absolute_file_path))} ✅"
+                            + f"✅ {utils.get_bold_text(os.path.basename(absolute_file_path))}"
                         )
 
     except FileNotFoundError:
-        print(f"File '{absolute_file_path}' not found.")
+        print(f"💥 File '{absolute_file_path}' not found.")
     except IOError:
-        print(f"Error reading file '{absolute_file_path}'.")
+        print(f"💥 Error reading file '{absolute_file_path}'.")
     except ValueError as e:
-        print(f"Error while applying review changes for file {absolute_file_path}.")
+        print(f"💥 Error while applying review changes for file {absolute_file_path}.")
         print(e)
     return None
 
@@ -191,6 +198,7 @@ def apply_review(
 def request_review_changes(
     code_chunk_with_suggestions,
     api_key,
+    gpt_model,
     programming_language,
     current_step,
     total_steps,
@@ -200,8 +208,9 @@ def request_review_changes(
             prompt.get_apply_review_for_git_diff_chunk_promp(
                 code_chunk_with_suggestions["code"],
                 json.dumps(code_chunk_with_suggestions["suggestions"]),
-                4096,
+                gpt_model.value,
                 programming_language,
+                gpt_model,
             )
         )
     )
@@ -210,10 +219,11 @@ def request_review_changes(
         prompt.get_apply_review_for_git_diff_chunk_promp(
             code_chunk_with_suggestions["code"],
             json.dumps(code_chunk_with_suggestions["suggestions"]),
-            4096 - message_tokens,
+            gpt_model.value - message_tokens,
             programming_language,
+            gpt_model,
         ),
-        f"Applying changes...🔧 {current_step}/{total_steps}",
+        f"🔧 Applying changes... {current_step}/{total_steps}",
     )
 
 

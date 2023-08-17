@@ -30,7 +30,9 @@ def print_review_from_response_json(feedback_json):
             print("No issues found in " + utils.get_bold_text(file))
 
 
-def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks, guided):
+def apply_review_to_file(
+    api_key, review_json, file_paths, code_change_chunks, guided, gpt_model
+):
     if review_json is not None:
         print_review_from_response_json(review_json)
         for index, file in enumerate(review_json):
@@ -46,11 +48,13 @@ def apply_review_to_file(api_key, review_json, file_paths, code_change_chunks, g
                             os.path.abspath(file_paths[file]),
                             review_json[file],
                             code_change_chunks[index],
+                            gpt_model,
                         )
             else:
                 print(
-                    f"There are unstaged changes in {utils.get_bold_text(file)}. "
-                    + "Please commit or stage them before applying the review changes."
+                    f"⚠️  There are unstaged changes in {utils.get_bold_text(file)}. "
+                    + "Please commit or stage them. "
+                    + "Applying review changes skipped for now."
                 )
 
 
@@ -111,7 +115,8 @@ def run():
     git_diff_token_count = utils.count_tokens(formatted_diff)
 
     if args.action == "review":
-        review_files_separately = git_diff_token_count > 3072
+        gpt_model = args.gpt4 and prompt.GptModel.GPT_4 or prompt.GptModel.GPT_35
+        review_files_separately = git_diff_token_count > gpt_model.value - 2048
 
         # Check if the token count exceeds the limit of 3072 (1024 tokens for response)
         # if yes, review the files separately
@@ -130,26 +135,32 @@ def run():
                     review_file = input().lower() == "y"
                 if not args.guided or review_file:
                     file_tokens = utils.count_tokens(value)
-                    if file_tokens > 3072:
+                    if file_tokens > gpt_model.value - 2048:
                         print(
                             "TODO: token count exceeds 3072 for a file. "
                             + "Split file changes into chunk of changes."
                         )
-                        exit()
-                    review_json = reviewer.request_review(api_key, value)
+                        continue
+                    review_json = reviewer.request_review(api_key, value, gpt_model)
                     apply_review_to_file(
                         api_key,
                         review_json,
                         {key: file_paths[key]},
                         [code_change_chunks[key]],
                         args.guided,
+                        gpt_model,
                     )
 
         # Review the changes in one request
         else:
-            review_json = reviewer.request_review(api_key, formatted_diff)
+            review_json = reviewer.request_review(api_key, formatted_diff, gpt_model)
             apply_review_to_file(
-                api_key, review_json, file_paths, code_change_chunks, args.guided
+                api_key,
+                review_json,
+                file_paths,
+                code_change_chunks,
+                args.guided,
+                gpt_model,
             )
 
     # Create a commit message using OpenAI API

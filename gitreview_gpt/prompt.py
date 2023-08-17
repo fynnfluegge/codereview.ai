@@ -1,3 +1,11 @@
+from enum import Enum
+
+
+class GptModel(Enum):
+    GPT_35 = 4096
+    GPT_4 = 8192
+
+
 def get_commit_message_prompt(git_diff_text):
     return {
         "model": "gpt-3.5-turbo",
@@ -23,9 +31,9 @@ def get_commit_message_prompt(git_diff_text):
     }
 
 
-def get_review_prompt(git_diff_text, max_tokens):
+def get_review_prompt(git_diff_text, max_tokens, gpt_model: GptModel):
     return {
-        "model": "gpt-3.5-turbo",
+        "model": gpt_model == GptModel.GPT_35 and "gpt-3.5-turbo" or "gpt-4",
         "max_tokens": max_tokens,
         "temperature": 0.4,
         "n": 1,
@@ -52,9 +60,9 @@ def get_review_prompt(git_diff_text, max_tokens):
     }
 
 
-def get_review_repair_prompt(invalid_json, error, max_tokens):
+def get_review_repair_prompt(invalid_json, error, max_tokens, gpt_model: GptModel):
     return {
-        "model": "gpt-3.5-turbo",
+        "model": gpt_model == GptModel.GPT_35 and "gpt-3.5-turbo" or "gpt-4",
         "max_tokens": max_tokens,
         "temperature": 0.5,
         "n": 1,
@@ -80,10 +88,10 @@ def get_review_repair_prompt(invalid_json, error, max_tokens):
 
 
 def get_apply_review_for_file_prompt(
-    code, review_comments, max_tokens, programming_language
+    code, review_comments, max_tokens, programming_language, gpt_model: GptModel
 ):
     return {
-        "model": "gpt-3.5-turbo",
+        "model": gpt_model == GptModel.GPT_35 and "gpt-3.5-turbo" or "gpt-4",
         "max_tokens": max_tokens,
         "temperature": 0.4,
         "n": 1,
@@ -107,10 +115,10 @@ def get_apply_review_for_file_prompt(
 
 
 def get_apply_review_for_git_diff_chunk_promp(
-    code_chunk, review_comments, max_tokens, programming_language
+    code_chunk, review_comments, max_tokens, programming_language, gpt_model: GptModel
 ):
     return {
-        "model": "gpt-3.5-turbo",
+        "model": gpt_model == GptModel.GPT_35 and "gpt-3.5-turbo" or "gpt-4",
         "max_tokens": max_tokens,
         "temperature": 0.4,
         "n": 1,
