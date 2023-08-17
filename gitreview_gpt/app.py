@@ -41,29 +41,27 @@ def apply_review_to_file(
     """
     Apply review to file
     """
-    if review_json is not None:
-        print_review_from_response_json(review_json)
-        for index, file in enumerate(review_json):
-            if not utils.has_unstaged_changes(file_paths[file]):
-                if review_json[file]:
-                    apply_changes = False
-                    if guided:
-                        print(f"Apply changes to {utils.get_bold_text(file)}? (y/n)")
-                        apply_changes = input().lower() == "y"
-                    if not guided or apply_changes:
-                        reviewer.apply_review(
-                            api_key,
-                            os.path.abspath(file_paths[file]),
-                            review_json[file],
-                            code_change_chunks[index],
-                            gpt_model,
-                        )
-            else:
-                print(
-                    f"⚠️ There are unstaged changes in {utils.get_bold_text(file)}. "
-                    + "Please commit or stage them. "
-                    + "Applying review changes skipped for now."
-                )
+    for index, file in enumerate(review_json):
+        if not utils.has_unstaged_changes(file_paths[file]):
+            if review_json[file]:
+                apply_changes = False
+                if guided:
+                    print(f"Apply changes to {utils.get_bold_text(file)}? (y/n)")
+                    apply_changes = input().lower() == "y"
+                if not guided or apply_changes:
+                    reviewer.apply_review(
+                        api_key,
+                        os.path.abspath(file_paths[file]),
+                        review_json[file],
+                        code_change_chunks[index],
+                        gpt_model,
+                    )
+        else:
+            print(
+                f"⚠️ There are unstaged changes in {utils.get_bold_text(file)}. "
+                + "Please commit or stage them. "
+                + "Applying review changes skipped for now."
+            )
 
 
 def run():
@@ -87,7 +85,7 @@ def run():
         + "Ask for confirmation before reviewing and applying changes for each file.",
     )
     parser.add_argument(
-        "readonly",
+        "--readonly",
         action="store_true",
         help="Readonly mode. Review changes without applying them to the files.",
     )
@@ -100,8 +98,7 @@ def run():
     api_key = os.environ.get("OPENAI_API_KEY")
 
     if not api_key:
-        print("OPENAI_API_KEY not found.")
-        sys.exit()
+        sys.exit("OPENAI_API_KEY not found.")
 
     if not args.action:
         sys.exit()
@@ -116,8 +113,7 @@ def run():
         ).stdout
 
     if not diff_text:
-        print("No git changes.")
-        sys.exit()
+        sys.exit("No git changes.")
 
     (
         formatted_diff,
@@ -130,7 +126,7 @@ def run():
 
     if args.action == "review":
         gpt_model = prompt.GptModel.GPT_4 if args.gpt4 else prompt.GptModel.GPT_35
-        review_files_separately = git_diff_token_count > gpt_model.value - 2048
+        review_files_separately = git_diff_token_count > gpt_model.value - 1024
 
         if review_files_separately:
             if args.guided:
@@ -146,34 +142,41 @@ def run():
                     review_file = input().lower() == "y"
                 if not args.guided or review_file:
                     file_tokens = utils.count_tokens(value)
-                    if file_tokens > gpt_model.value - 2048:
+                    if file_tokens > gpt_model.value - 1024:
                         print(
-                            "The token count exceeds the limit for a file. "
-                            + "Split file changes into chunk of changes."
+                            f"⚠️  The token count of {utils.get_bold_text(key)} exceeds "
+                            + "the current limit for a file. Conder using the "
+                            + f"{utils.get_bold_text('--gpt4')} flag."
                         )
                         continue
-                    review_json = reviewer.request_review(api_key, value, gpt_model)
-                    if not args.readonly:
-                        apply_review_to_file(
-                            api_key,
-                            review_json,
-                            {key: file_paths[key]},
-                            [code_change_chunks[key]],
-                            args.guided,
-                            gpt_model,
-                        )
+                    review_json = reviewer.request_review(
+                        api_key, value, gpt_model, key
+                    )
+                    if review_json is not None:
+                        print_review_from_response_json(review_json)
+                        if not args.readonly:
+                            apply_review_to_file(
+                                api_key,
+                                review_json,
+                                {key: file_paths[key]},
+                                [code_change_chunks[key]],
+                                args.guided,
+                                gpt_model,
+                            )
 
         else:
             review_json = reviewer.request_review(api_key, formatted_diff, gpt_model)
-            if not args.readonly:
-                apply_review_to_file(
-                    api_key,
-                    review_json,
-                    file_paths,
-                    code_change_chunks,
-                    args.guided,
-                    gpt_model,
-                )
+            if review_json is not None:
+                print_review_from_response_json(review_json)
+                if not args.readonly:
+                    apply_review_to_file(
+                        api_key,
+                        review_json,
+                        file_paths,
+                        code_change_chunks,
+                        args.guided,
+                        gpt_model,
+                    )
 
     elif args.action == "commit":
         payload = prompt.get_commit_message_prompt(formatted_diff)

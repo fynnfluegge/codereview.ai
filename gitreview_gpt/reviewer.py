@@ -9,12 +9,20 @@ import gitreview_gpt.request as request
 
 # Retrieve review from openai completions api
 # Process response and send repair request if json has invalid format
-def request_review(api_key, code_to_review, gpt_model) -> Dict[str, Any] | None:
+def request_review(
+    api_key, code_to_review, gpt_model, file_name=None
+) -> Dict[str, Any] | None:
     max_tokens = gpt_model.value - utils.count_tokens(
         json.dumps(prompt.get_review_prompt(code_to_review, gpt_model.value, gpt_model))
     )
     payload = prompt.get_review_prompt(code_to_review, max_tokens, gpt_model)
-    review_result = request.send_request(api_key, payload, "🔍 Reviewing...")
+
+    spinner_text = "🔍 Reviewing"
+    if file_name is not None:
+        spinner_text += f" {utils.get_bold_text(file_name)}"
+    spinner_text += "..."
+
+    review_result = request.send_request(api_key, payload, spinner_text)
     if not review_result:
         return None
     try:
@@ -63,6 +71,7 @@ def apply_review(
 ):
     try:
         with open(absolute_file_path, "r") as file:
+            file_name = os.path.basename(file.name)
             programming_language = utils.get_programming_language(file.name)
             file_content = file.read()
             payload = {
@@ -145,6 +154,7 @@ def apply_review(
                             programming_language,
                             index,
                             code_chunk_count,
+                            file_name,
                         )
                         add_reviewed_code(reviewed_code_chunks, reviewed_code)
 
@@ -154,8 +164,13 @@ def apply_review(
                 )
                 utils.override_lines_in_file(absolute_file_path, code_lines)
                 print(
-                    "Successfully applied review changes to "
-                    + f"✅ {utils.get_bold_text(os.path.basename(absolute_file_path))}"
+                    "✅ Successfully applied review changes to "
+                    + f"{utils.get_bold_text(os.path.basename(absolute_file_path))}"
+                    + "\n"
+                    + "Note: The changes have been applied iteratively "
+                    + "due to the large amount of changes. "
+                    + "There might be syntax errors in the code. "
+                    + f"Consider using the {utils.get_bold_text('--gpt4')} flag."
                 )
 
             # tokens for file content and review suggestions are less than threshold
@@ -171,7 +186,7 @@ def apply_review(
                         programming_language,
                         gpt_model,
                     ),
-                    "🔧 Applying changes...",
+                    f"🔧 Applying changes to {utils.get_bold_text(file_name)}...",
                 )
                 reviewed_git_diff = formatter.extract_content_from_markdown_code_block(
                     reviewed_git_diff
@@ -181,8 +196,8 @@ def apply_review(
                     if reviewed_git_diff:
                         file.write(reviewed_git_diff)
                         print(
-                            "Successfully applied review changes to "
-                            + f"✅ {utils.get_bold_text(os.path.basename(absolute_file_path))}"
+                            "✅ Successfully applied review changes to "
+                            + f"{utils.get_bold_text(file_name)}"
                         )
 
     except FileNotFoundError:
@@ -202,6 +217,7 @@ def request_review_changes(
     programming_language,
     current_step,
     total_steps,
+    file_name,
 ):
     message_tokens = utils.count_tokens(
         json.dumps(
@@ -223,7 +239,8 @@ def request_review_changes(
             programming_language,
             gpt_model,
         ),
-        f"🔧 Applying changes... {current_step}/{total_steps}",
+        "🔧 Applying changes to "
+        + f"{utils.get_bold_text(file_name)}... {current_step}/{total_steps}",
     )
 
 

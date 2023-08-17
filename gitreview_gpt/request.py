@@ -3,10 +3,7 @@ from yaspin import yaspin
 
 
 def send_request(api_key, payload, spinner_text):
-    payload_json = payload
-
-    spinner = yaspin()
-    spinner.text = spinner_text
+    spinner = yaspin(text=spinner_text)
     spinner.start()
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -15,7 +12,7 @@ def send_request(api_key, payload, spinner_text):
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
-            json=payload_json,
+            json=payload,
         )
         response.raise_for_status()
         json_response = response.json()
