@@ -10,13 +10,13 @@
   
 </div>
 
-Get review suggestions to changes in your git working directory or to any committed changes in your current branch against a target branch and let these suggestions get applied to your code. 
-
 <div align="center">
   
 ![ezgif-5-956a1609ab](https://github.com/fynnfluegge/gitreview-gpt/assets/16321871/ce68fb34-2748-4929-aaaa-b2a1271301a5)
 
 </div>
+
+Get review suggestions to changes in your git working directory or to any committed changes in your current branch against a target branch and let these suggestions get applied to your code. 
 
 ## ✨ Features
 
