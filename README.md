@@ -3,8 +3,7 @@
 # Let your code changes get reviewed by AI with codereview-agi
 
 [![Build](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/build.yml)
-[![Publish](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/publish.yml)
-<a href="https://github.com/fynnfluegge/rocketnotes/blob/main/LICENSE">
+[![Publish](https://github.com/fynnfluegge/codereview-agi/actions/workflows/publish.yml/badge.svg)](https://github.com/fynnfluegge/codereview-agi/actions/workflows/publish.yml)<a href="https://github.com/fynnfluegge/rocketnotes/blob/main/LICENSE">
   <img src="https://img.shields.io/badge/License-MIT-green.svg"/>
 </a>
   
