@@ -1,6 +1,6 @@
 <div align="center">
 
-# Let your code get reviewed by AI with codereview-agi
+# Let your code changes get reviewed by AI with codereview-agi
 
 [![Build](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/build.yml)
 [![Publish](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/publish.yml/badge.svg?branch=main)](https://github.com/fynnfluegge/gitreview-gpt/actions/workflows/publish.yml)
@@ -16,7 +16,8 @@
 
 </div>
 
-Get review suggestions to changes in your git working directory or to any committed changes in your current branch against a target branch and let these suggestions get applied to your code. 
+Get review suggestions to changes in your git working directory or to any committed changes in your current branch against a target branch and let these suggestions get applied to your code
+with an informative commit message.
 
 ## ✨ Features
 
@@ -57,4 +58,4 @@ pipx install gitreview-gpt
 ```
 
 > [!NOTE]
-> It is recommended to use `pipx` for installation, nonetheless it is also possible to use `pip`
+> It is recommended to use `pipx` for installation, nonetheless it is also possible to use `pip`.
