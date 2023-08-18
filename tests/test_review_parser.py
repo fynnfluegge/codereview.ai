@@ -25,7 +25,7 @@ class TestReviewParser(unittest.TestCase):
                     end_line=8,
                     code="@@ -156,8 +211,8 @@ def run():\n"
                     + "211 \n"
-                    + '212     print("The Review will be splitted into multiple requests.")\n'
+                    + '212     print("The Review will be split into multiple requests.")\n'
                     + "213 \n"
                     + "214 +    for index, value in enumerate(diff_file_chunks.values()):\n"
                     + '215 +        print(f"Review file \033[01m{file_names[index]}\033[0m? (y/n)")\n'
@@ -74,7 +74,7 @@ class TestReviewParser(unittest.TestCase):
             {
                 "code": "@@ -156,8 +211,8 @@ def run():\n"
                 + "211 \n"
-                + '212     print("The Review will be splitted into multiple requests.")\n'
+                + '212     print("The Review will be split into multiple requests.")\n'
                 + "213 \n"
                 + "214 +    for index, value in enumerate(diff_file_chunks.values()):\n"
                 + '215 +        print(f"Review file \x1b[01m{file_names[index]}\x1b[0m? (y/n)")\n'
