@@ -132,7 +132,7 @@ def run():
             if args.guided:
                 print(
                     "Your changes are large. "
-                    + "The Review will be splitted into multiple requests."
+                    + "The Review will be split into multiple requests."
                 )
 
             for key, value in diff_file_chunks.items():

@@ -23,7 +23,7 @@ def send_request(api_key, payload, spinner_text):
         )
         return review_summary
     except (KeyError, requests.exceptions.RequestException) as e:
-        print("💥 An error occured while requesting a review.")
+        print("💥 An error occurred while requesting a review.")
         print(str(e))
         return None
     finally:
