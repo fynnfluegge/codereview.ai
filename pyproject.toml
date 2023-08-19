@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gitreview-gpt"
-version = "0.1.2"
+version = "0.1.3"
 description = "CLI tool that reviews your git changes with GPT-3.5 and GPT-4"
 authors = ["fynnfluegge <fynnfluegge@gmx.de>"]
 readme = "README.md"
