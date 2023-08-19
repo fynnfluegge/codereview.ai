@@ -2,6 +2,7 @@ import re
 import textwrap
 import os
 import json
+import gitreview_gpt.utils as utils
 from typing import Tuple, Dict, List
 
 
@@ -30,6 +31,7 @@ def format_git_diff(
     git_diff_code_block_chunks = {}
     file_paths = {}
 
+    file_blacklist = utils.get_file_blacklist()
     # Split git diff into chunks with separator +++ line inclusive,
     # the line with the filename
     parent_chunks = re.split(r"\n\+{3,}\s", diff_text, re.MULTILINE)
@@ -54,6 +56,8 @@ def format_git_diff(
                 file_name = code_change_chunk.rstrip("\n").rsplit("/", 1)[-1]
                 # Skip unmerged added files
                 if file_name == "null":
+                    break
+                if file_name in file_blacklist:
                     break
                 git_diff_formatted += code_change_chunk.rsplit("/", 1)[-1]
                 git_diff_file_chunks[file_name] = code_change_chunk.rsplit("/", 1)[-1]

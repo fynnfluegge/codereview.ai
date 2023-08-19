@@ -70,6 +70,20 @@ def get_programming_language(filename):
         return "Unknown"
 
 
+def get_file_blacklist():
+    return [
+        ".git",
+        "package-lock.json",
+        "package.json",
+        "yarn.lock",
+        "pom.xml",
+        "build.gradle",
+        "pyproject.toml",
+        "requirements.txt",
+        "poetry.lock",
+    ]
+
+
 # Return the number of tokens in a string
 def count_tokens(text):
     encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
