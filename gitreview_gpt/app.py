@@ -41,7 +41,7 @@ def apply_review_to_file(
     """
     Apply review to file
     """
-    for index, file in enumerate(review_json):
+    for file in review_json:
         if not utils.has_unstaged_changes(file_paths[file]):
             if review_json[file]:
                 apply_changes = False
@@ -53,12 +53,12 @@ def apply_review_to_file(
                         api_key,
                         os.path.abspath(file_paths[file]),
                         review_json[file],
-                        code_change_chunks[index],
+                        code_change_chunks[file],
                         gpt_model,
                     )
         else:
             print(
-                f"⚠️ There are unstaged changes in {utils.get_bold_text(file)}. "
+                f"⚠️  There are unstaged changes in {utils.get_bold_text(file)}. "
                 + "Please commit or stage them. "
                 + "Applying review changes skipped for now."
             )
