@@ -165,12 +165,12 @@ def apply_review(
                 utils.override_lines_in_file(absolute_file_path, code_lines)
                 print(
                     "✅ Successfully applied review changes to "
-                    + f"{utils.get_bold_text(os.path.basename(absolute_file_path))}"
-                    + "\n"
-                    + "Note: The changes have been applied iteratively "
-                    + "due to the large amount of changes. "
-                    + "There might be syntax errors in the code. "
-                    + f"Consider using the {utils.get_bold_text('--gpt4')} flag."
+                    f"{utils.get_bold_text(os.path.basename(absolute_file_path))}"
+                    "\n"
+                    "Note: The changes have been applied iteratively "
+                    "due to the large amount of changes. "
+                    "There might be syntax errors in the code. "
+                    f"Consider using the {utils.get_bold_text('--gpt4')} flag."
                 )
 
             # tokens for file content and review suggestions are less than threshold
@@ -197,7 +197,7 @@ def apply_review(
                         file.write(reviewed_git_diff)
                         print(
                             "✅ Successfully applied review changes to "
-                            + f"{utils.get_bold_text(file_name)}"
+                            f"{utils.get_bold_text(file_name)}"
                         )
 
     except FileNotFoundError:

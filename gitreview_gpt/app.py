@@ -121,67 +121,37 @@ def run():
         file_paths,
     ) = formatter.format_git_diff(diff_text)
 
-    git_diff_token_count = utils.count_tokens(formatted_diff)
-
     if args.action == "review":
         gpt_model = prompt.GptModel.GPT_4 if args.gpt4 else prompt.GptModel.GPT_35
-        review_files_separately = (
-            git_diff_token_count > gpt_model.value - 1024 or args.guided
-        )
 
-        if review_files_separately:
+        for key, value in diff_file_chunks.items():
+            review_file = False
             if args.guided:
-                print(
-                    "Your changes are large. "
-                    + "The Review will be split into multiple requests."
-                )
-
-            for key, value in diff_file_chunks.items():
-                review_file = False
-                if args.guided:
-                    print(f"Review file {utils.get_bold_text(key)}? (y/n)")
-                    review_file = input().lower() == "y"
-                if not args.guided or review_file:
-                    file_tokens = utils.count_tokens(value)
-                    if file_tokens > gpt_model.value - 1024:
-                        print(
-                            f"⚠️  The token count of {utils.get_bold_text(key)} exceeds "
-                            + "the current limit for a file. Conder using the "
-                            + f"{utils.get_bold_text('--gpt4')} flag."
-                        )
-                        continue
-                    review_json = reviewer.request_review(
-                        api_key, value, gpt_model, key
+                print(f"Review file {utils.get_bold_text(key)}? (y/n)")
+                review_file = input().lower() == "y"
+            if not args.guided or review_file:
+                file_tokens = utils.count_tokens(value)
+                if file_tokens > gpt_model.value - 1024:
+                    print(
+                        f"⚠️  The token count of {utils.get_bold_text(key)} exceeds "
+                        + "the current limit for a file. Conder using the "
+                        + f"{utils.get_bold_text('--gpt4')} flag."
                     )
-                    if review_json is not None:
-                        print_review_from_response_json(review_json)
-                        if not args.readonly:
-                            for file_name, review in review_json.items():
-                                apply_review_to_file(
-                                    api_key,
-                                    file_name,
-                                    file_paths[file_name],
-                                    review,
-                                    code_change_chunks[file_name],
-                                    args.guided,
-                                    gpt_model,
-                                )
-
-        else:
-            review_json = reviewer.request_review(api_key, formatted_diff, gpt_model)
-            if review_json is not None:
-                print_review_from_response_json(review_json)
-                if not args.readonly:
-                    for file_name, review in review_json.items():
-                        apply_review_to_file(
-                            api_key,
-                            file_name,
-                            file_paths[file_name],
-                            review,
-                            code_change_chunks[file_name],
-                            args.guided,
-                            gpt_model,
-                        )
+                    continue
+                review_json = reviewer.request_review(api_key, value, gpt_model, key)
+                if review_json is not None:
+                    print_review_from_response_json(review_json)
+                    if not args.readonly:
+                        for file_name, review in review_json.items():
+                            apply_review_to_file(
+                                api_key,
+                                file_name,
+                                file_paths[file_name],
+                                review,
+                                code_change_chunks[file_name],
+                                args.guided,
+                                gpt_model,
+                            )
 
     elif args.action == "commit":
         payload = prompt.get_commit_message_prompt(formatted_diff)
