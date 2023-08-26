@@ -81,6 +81,8 @@ def get_file_blacklist():
         "pyproject.toml",
         "requirements.txt",
         "poetry.lock",
+        "tsconfig.json",
+        "pnpm-lock.yaml",
     ]
 
 
