@@ -22,7 +22,7 @@ class TestReviewParser(unittest.TestCase):
             "run():": [
                 formatter.CodeChunk(
                     start_line=211,
-                    end_line=8,
+                    end_line=218,
                     code="@@ -156,8 +211,8 @@ def run():\n"
                     "211 \n"
                     '212     print("The Review will be split into multiple requests.")\n'
@@ -35,7 +35,7 @@ class TestReviewParser(unittest.TestCase):
                 ),
                 formatter.CodeChunk(
                     start_line=223,
-                    end_line=15,
+                    end_line=237,
                     code="@@ -168,7 +223,15 @@ def run():\n"
                     '223          "TODO: token count exceeds 1500. Split file chunks into chunk of changes"\n'
                     "224             )\n"
@@ -72,34 +72,11 @@ class TestReviewParser(unittest.TestCase):
         }
         self.code_change_hunk_review_payload = [
             {
-                "code": "@@ -156,8 +211,8 @@ def run():\n"
-                "211 \n"
-                '212     print("The Review will be split into multiple requests.")\n'
-                "213 \n"
-                "214 +    for index, value in enumerate(diff_file_chunks.values()):\n"
-                '215 +        print(f"Review file \x1b[01m{file_names[index]}\x1b[0m? (y/n)")\n'
-                "216          user_input = input()\n"
-                '217          if user_input == "n":\n'
-                "218              continue\n",
+                "code": self.code_change_chunks["run():"][0],
                 "suggestions": {215: "Some feedback comments to line 215."},
             },
             {
-                "code": "@@ -168,7 +223,15 @@ def run():\n"
-                '223          "TODO: token count exceeds 1500. Split file chunks into chunk of changes"\n'
-                "224             )\n"
-                "225             exit()\n"
-                "226 +                review_result = request_review(api_key, value)\n"
-                "227 +                # if review_result is not None:\n"
-                "228 +                #     request_review_changes(\n"
-                "229 +                #         api_key,\n"
-                '230 +                #         git_root + " / " + file_paths[index],\n'
-                "231 +                #         review_result[file_names[index]],\n"
-                "232 +                #         value,\n"
-                "233 +                #         code_change_chunks[index],\n"
-                "234 +                #     )\n"
-                "235 \n"
-                "236      # Review the changes in one request\n"
-                "237      else:\n",
+                "code": self.code_change_chunks["run():"][1],
                 "suggestions": {
                     225: "Some feedback comments to line 225.",
                     226: "Some feedback comments to line 226.",

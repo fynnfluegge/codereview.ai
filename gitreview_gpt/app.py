@@ -7,6 +7,7 @@ import gitreview_gpt.formatter as formatter
 import gitreview_gpt.utils as utils
 import gitreview_gpt.request as request
 import gitreview_gpt.reviewer as reviewer
+import gitreview_gpt.domain as domain
 
 
 def get_git_diff(branch):

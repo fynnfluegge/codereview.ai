@@ -182,7 +182,7 @@ class TestFormatter(unittest.TestCase):
         }
         self.code_change_chunks_fixture = {
             "app.py": {
-                "": [
+                "import subprocess": [
                     formatter.CodeChunk(
                         start_line=3,
                         end_line=6,
@@ -195,10 +195,10 @@ class TestFormatter(unittest.TestCase):
                         "8 from yaspin import yaspin\n",
                     )
                 ],
-                "run():": [
+                "def run():": [
                     formatter.CodeChunk(
                         start_line=211,
-                        end_line=8,
+                        end_line=218,
                         code="@@ -156,8 +211,8 @@ def run():\n"
                         "211 \n"
                         '212     print("The Review will be split into multiple requests.")\n'
@@ -211,7 +211,7 @@ class TestFormatter(unittest.TestCase):
                     ),
                     formatter.CodeChunk(
                         start_line=223,
-                        end_line=15,
+                        end_line=237,
                         code="@@ -168,7 +223,15 @@ def run():\n"
                         '223          "TODO: token count exceeds 1500. Split file chunks into chunk of changes"\n'
                         "224             )\n"
@@ -276,16 +276,32 @@ class TestFormatter(unittest.TestCase):
         self.assertEqual(file_chunks, self.file_chunks_fixture)
         self.assertEqual(file_paths, self.file_paths_fixture)
         self.assertEqual(
-            code_change_chunks["app.py"][""][0].code,
-            self.code_change_chunks_fixture["app.py"][""][0].code,
+            code_change_chunks["app.py"]["import subprocess"][0].code,
+            self.code_change_chunks_fixture["app.py"]["import subprocess"][0].code,
         )
         self.assertEqual(
-            code_change_chunks["app.py"]["run():"][0].code,
-            self.code_change_chunks_fixture["app.py"]["run():"][0].code,
+            code_change_chunks["app.py"]["def run():"][0].start_line,
+            self.code_change_chunks_fixture["app.py"]["def run():"][0].start_line,
         )
         self.assertEqual(
-            code_change_chunks["app.py"]["run():"][1].code,
-            self.code_change_chunks_fixture["app.py"]["run():"][1].code,
+            code_change_chunks["app.py"]["def run():"][0].end_line,
+            self.code_change_chunks_fixture["app.py"]["def run():"][0].end_line,
+        )
+        self.assertEqual(
+            code_change_chunks["app.py"]["def run():"][0].code,
+            self.code_change_chunks_fixture["app.py"]["def run():"][0].code,
+        )
+        self.assertEqual(
+            code_change_chunks["app.py"]["def run():"][1].code,
+            self.code_change_chunks_fixture["app.py"]["def run():"][1].code,
+        )
+        self.assertEqual(
+            code_change_chunks["app.py"]["def run():"][1].start_line,
+            self.code_change_chunks_fixture["app.py"]["def run():"][1].start_line,
+        )
+        self.assertEqual(
+            code_change_chunks["app.py"]["def run():"][1].end_line,
+            self.code_change_chunks_fixture["app.py"]["def run():"][1].end_line,
         )
         self.assertEqual(
             code_change_chunks["formatter.py"][""][0].code,
