@@ -1,4 +1,5 @@
 from enum import Enum
+from gitreview_gpt.constants import Language
 
 
 class GptModel(Enum):
@@ -89,7 +90,11 @@ def get_review_repair_prompt(invalid_json, error, max_tokens, gpt_model: GptMode
 
 
 def get_apply_review_for_file_prompt(
-    code, review_comments, max_tokens, programming_language, gpt_model: GptModel
+    code,
+    review_comments,
+    max_tokens,
+    programming_language: Language,
+    gpt_model: GptModel,
 ):
     return {
         "model": gpt_model == GptModel.GPT_35 and "gpt-3.5-turbo" or "gpt-4",
@@ -100,23 +105,27 @@ def get_apply_review_for_file_prompt(
         "messages": [
             {
                 "role": "user",
-                "content": f"Review the following {programming_language} code and address the review comments below:\n"
-                f"{programming_language} code:\n"
+                "content": f"Review the following {programming_language.value} code and address the review comments below:\n"
+                f"{programming_language.value} code:\n"
                 "```\n"
                 f"{code}"
                 "```\n"
                 "Review comments:\n"
                 f"{review_comments}"
                 "\n"
-                f"Apply the necessary changes to the {programming_language} code based on the review comments and provide an updated version of the code with the improvements made."
-                f"Provide only the updated {programming_language} code in your response. Don't include any explanations in your response.",
+                f"Apply the necessary changes to the {programming_language.value} code based on the review comments and provide an updated version of the code with the improvements made."
+                f"Provide only the updated {programming_language.value} code in your response. Don't include any explanations in your response.",
             },
         ],
     }
 
 
-def get_apply_review_for_git_diff_chunk_promp(
-    code_chunk, review_comments, max_tokens, programming_language, gpt_model: GptModel
+def get_apply_review_for_treesitter_node_prompt(
+    code_chunk,
+    review_comments,
+    max_tokens,
+    programming_language: Language,
+    gpt_model: GptModel,
 ):
     return {
         "model": gpt_model == GptModel.GPT_35 and "gpt-3.5-turbo" or "gpt-4",
@@ -127,17 +136,16 @@ def get_apply_review_for_git_diff_chunk_promp(
         "messages": [
             {
                 "role": "user",
-                "content": f"Review the following {programming_language} code snippet and address the review comments below:\n"
-                f"{programming_language} code:\n"
+                "content": f"Review the following {programming_language.value} method and address the review comments below:\n"
+                f"{programming_language.value} code:\n"
                 "```\n"
                 f"{code_chunk}"
                 "```\n"
                 "Review comments:\n"
                 f"{review_comments}"
                 "\n"
-                f"Apply the necessary changes to the {programming_language} code based on the review comments. "
-                "Add line numbers to the code to indicate where the changes should be made. "
-                "Preserve the indentation of the code. "
+                f"Apply the necessary changes to the {programming_language.value} code based on the review comments. "
+                f"Return the the updated {programming_language.value} code as a markdown code block. "
                 "Don't include any explanations in your response.",
             },
         ],

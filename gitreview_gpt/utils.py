@@ -1,6 +1,9 @@
 import json
 import subprocess
 import tiktoken
+import os
+import re
+from gitreview_gpt.constants import Language
 
 
 def parse_string_to_int(input_string):
@@ -37,37 +40,40 @@ def repair_truncated_json(json_str):
             raise ValueError("Could not repair JSON")
 
 
-def get_programming_language(filename):
+def get_programming_language(file_extension: str) -> Language:
+    """
+    Retrieves the programming language based on the given file extension.
+
+    Args:
+        file_extension (str): The file extension to determine the programming language.
+
+    Returns:
+        Language: The programming language associated with the given file extension.
+    """
     language_mapping = {
-        ".py": "Python",
-        ".js": "JavaScript",
-        ".java": "Java",
-        ".cpp": "C++",
-        ".c": "C",
-        ".html": "HTML",
-        ".css": "CSS",
-        ".php": "PHP",
-        ".rb": "Ruby",
-        ".go": "Go",
-        ".rs": "Rust",
-        ".swift": "Swift",
-        ".kt": "Kotlin",
-        ".cs": "C#",
-        ".m": "Objective-C",
-        ".scala": "Scala",
-        ".pl": "Perl",
-        ".lua": "Lua",
-        ".r": "R",
-        ".ts": "TypeScript",
+        ".py": Language.PYTHON,
+        ".js": Language.JAVASCRIPT,
+        ".ts": Language.TYPESCRIPT,
+        ".java": Language.JAVA,
+        ".kt": Language.KOTLIN,
+        ".lua": Language.LUA,
+        ".rs": Language.RUST,
+        ".go": Language.GO,
     }
+    return language_mapping.get(file_extension, Language.UNKNOWN)
 
-    # Extract file extension from the filename
-    file_extension = filename[filename.rfind(".") :].lower()
 
-    if file_extension in language_mapping:
-        return language_mapping[file_extension]
-    else:
-        return "Unknown"
+def get_file_extension(file_name: str) -> str:
+    """
+    Return the extension of the file.
+
+    Parameters:
+    file_name (str): The name of the file.
+
+    Returns:
+    str: The file extension.
+    """
+    return os.path.splitext(file_name)[-1]
 
 
 def get_file_blacklist():
@@ -112,19 +118,91 @@ def has_unstaged_changes(file):
         return True  # Unstaged changes exist
 
 
-def override_lines_in_file(file_path, lines_dict):
-    try:
-        with open(file_path, "r") as file:
-            existing_lines = file.readlines()
+def write_code_snippet_to_file(file_path: str, original_code: str, modified_code: str):
+    """
+    Replace the original code snippet with the modified code in the given file.
 
-        with open(file_path, "w") as file:
-            for line_number, new_line_content in lines_dict.items():
-                # Adjust line number to 0-based index
-                line_index = line_number - 1
+    Args:
+        file_path (str): The path to the file.
+        original_code (str): The code snippet to be replaced.
+        modified_code (str): The code snippet to replace the original code.
 
-                if 0 <= line_index < len(existing_lines):
-                    existing_lines[line_index] = new_line_content + "\n"
+    Returns:
+        None
+    """
+    with open(file_path, "r") as file:
+        file_content = file.read()
+        start_pos = file_content.find(original_code)
+        if start_pos != -1:
+            end_pos = start_pos + len(original_code)
+            indentation = file_content[:start_pos].split("\n")[-1]
+            modeified_lines = modified_code.split("\n")
+            indented_modified_lines = [indentation + line for line in modeified_lines]
+            indented_modified_code = "\n".join(indented_modified_lines)
+            modified_content = (
+                file_content[:start_pos].rstrip()
+                + "\n"
+                + indented_modified_code
+                + file_content[end_pos:]
+            )
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write(modified_content)
 
-            file.writelines(existing_lines)
-    except Exception as e:
-        print("An error occurred:", str(e))
+
+def extract_content_from_markdown_code_block(markdown_code_block) -> str:
+    """
+    Extracts the content from a markdown code block inside a string.
+
+    Args:
+        markdown_code_block (str): The markdown code block to extract content from.
+
+    Returns:
+        str: The extracted content.
+
+    """
+    pattern = r"```(?:[a-zA-Z0-9]+)?\n(.*?)```"
+    match = re.search(pattern, markdown_code_block, re.DOTALL)
+
+    if match:
+        return match.group(1).strip()
+    else:
+        return markdown_code_block.strip()
+
+
+def get_start_line_number(content, line):
+    """
+    Returns the starting line number of the given line in the content.
+
+    Args:
+        content (str): The content to search in.
+        line (str): The line to search for.
+
+    Returns:
+        int: The starting line number of the given line in the content.
+    """
+    lines = content.split("\n")
+    for i, l in enumerate(lines):
+        if l == line:
+            return i + 1
+    return -1
+
+
+def add_line_numbers(code_string, start_number=1):
+    # Split the code into lines
+    lines = code_string.split("\n")
+
+    # Calculate the width of the line number column based on the number of lines
+    line_number_width = len(str(len(lines) + start_number - 1))
+
+    # Create a list to store lines with line numbers
+    lines_with_numbers = []
+
+    # Iterate through the lines and add line numbers
+    for i, line in enumerate(lines, start=start_number):
+        line_number = str(i).rjust(line_number_width)  # Right-align line numbers
+        lines_with_numbers.append(f"{line_number}: {line}")
+
+    # Join the lines with line numbers and return as a single string
+    code_with_line_numbers = "\n".join(lines_with_numbers)
+
+    return code_with_line_numbers

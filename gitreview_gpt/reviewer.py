@@ -5,6 +5,11 @@ import gitreview_gpt.prompt as prompt
 import gitreview_gpt.formatter as formatter
 import gitreview_gpt.utils as utils
 import gitreview_gpt.request as request
+from gitreview_gpt.treesitter.treesitter import (
+    Treesitter,
+    TreesitterNode,
+    get_source_from_node,
+)
 
 
 # Retrieve review from openai completions api
@@ -67,13 +72,22 @@ def request_review(
 # Retrieve code changes from openai completions api
 # for one specific file with the related review
 def apply_review(
-    api_key, absolute_file_path, review_json, selection_marker_chunks: Dict, gpt_model
+    api_key,
+    absolute_file_path,
+    review_json,
+    selection_marker_chunks: Dict,
+    gpt_model,
 ):
     try:
         with open(absolute_file_path, "r") as file:
             file_name = os.path.basename(file.name)
-            programming_language = utils.get_programming_language(file.name)
             file_content = file.read()
+            file_extension = utils.get_file_extension(file_name)
+            programming_language = utils.get_programming_language(file_extension)
+            treesitter_parser = Treesitter.create_treesitter(programming_language)
+            treesitterNodes: list[TreesitterNode] = treesitter_parser.parse(
+                file_content.encode()
+            )
             payload = {
                 "code": file_content,
                 "reviews": formatter.get_review_suggestions_per_file_payload_from_json(
@@ -92,7 +106,7 @@ def apply_review(
             # split requests into code chunks by selection markers
             if tokens > gpt_model.value / 2 and selection_marker_chunks is not None:
                 # initialize reviewed code for applying code changes later a tonce
-                reviewed_code = []
+                reviewed_code_chunks = []
 
                 # create line number stack for  merging code chunk with line numbers
                 line_number_stack = []
@@ -116,38 +130,76 @@ def apply_review(
 
                 # iterate over code chunks by selection markers
                 # and merge them with review suggestions by line numbers
-                for code_chunk in selection_marker_chunks.values():
+                for selection_marker in selection_marker_chunks.keys():
+                    print("selection_marker " + selection_marker)
+                    print("line_number_stack")
+                    print(line_number_stack)
+                    code_chunk = selection_marker_chunks[selection_marker]
                     # if there are no more line numbers in stack,
                     # there are no more review suggestions, break loop
                     if not line_number_stack:
                         break
 
                     # merge code chunk with suggestions by line numbers
-                    chunk_payload = formatter.parse_apply_review_per_code_hunk(
-                        code_chunk,
-                        review_json,
-                        line_number_stack,
+                    selection_marker_code_chunks_with_suggestions = (
+                        formatter.parse_apply_review_per_code_hunk(
+                            code_chunk,
+                            review_json,
+                            line_number_stack,
+                        )
                     )
 
-                    # there are review suggestions in that code chunk
-                    if chunk_payload:
-                        for chunk in chunk_payload:
-                            chunk_tokens = (
-                                utils.count_tokens(json.dumps(chunk)) + prompt_tokens
+                    for obj in selection_marker_code_chunks_with_suggestions:
+                        print(obj["suggestions"])
+                        print(obj["code"].code)
+                        print(obj["code"].start_line)
+                        print(obj["code"].end_line)
+
+                    merged_suggestions = {}
+                    for obj in selection_marker_code_chunks_with_suggestions:
+                        for line_number, feedback in obj["suggestions"].items():
+                            merged_suggestions[line_number] = feedback
+
+                    print(merged_suggestions)
+
+                    code = None
+                    for node in treesitterNodes:
+                        if node.name in selection_marker:
+                            print("node name " + node.name.__str__())
+                            node_source = get_source_from_node(node.node)
+                            start_line = utils.get_start_line_number(
+                                file_content, node_source.split("\n")[0]
                             )
-                            # if chunk tokens are smaller than threshold
-                            # add chunk to code chunks to review
-                            if chunk_tokens <= gpt_model.value / 2:
-                                code_chunks_to_review.append(chunk)
-                            else:
-                                # code chunk tokens are greater than threshold
-                                # skip since results are not reliable
-                                pass
+                            code = utils.add_line_numbers(node_source, start_line)
+                            break
+
+                    payload = {
+                        "code": code,
+                        "suggestions": merged_suggestions,
+                    }
+
+                    # print(payload)
+
+                    # there are review suggestions in that code chunk
+                    if code and merged_suggestions:
+                        chunk_tokens = (
+                            utils.count_tokens(json.dumps(payload)) + prompt_tokens
+                        )
+                        # if chunk tokens are smaller than threshold
+                        # add chunk to code chunks to review
+                        if chunk_tokens <= gpt_model.value / 2:
+                            print("Payload added")
+                            code_chunks_to_review.append(payload)
+                        else:
+                            print("Payload not added")
+                            # code chunk tokens are greater than threshold
+                            # skip since results are not reliable
+                            pass
 
                 if code_chunks_to_review:
                     code_chunk_count = code_chunks_to_review.__len__()
                     for index, chunk in enumerate(code_chunks_to_review, start=1):
-                        reviewed_code_chunks = request_review_changes(
+                        reviewed_code_chunk = request_review_changes(
                             chunk,
                             api_key,
                             gpt_model,
@@ -156,13 +208,30 @@ def apply_review(
                             code_chunk_count,
                             file_name,
                         )
-                        add_reviewed_code(reviewed_code_chunks, reviewed_code)
+                        reviewed_code_chunks.append(
+                            {
+                                "original_code": chunk["code"],
+                                "reviewed_code": utils.extract_content_from_markdown_code_block(
+                                    reviewed_code_chunk
+                                ),
+                            }
+                        )
 
                 file.close()
-                code_lines: Dict[int, str] = formatter.code_block_to_dict(
-                    "".join(reviewed_code)
+
+                print(
+                    "number of reviewed code chunks "
+                    + reviewed_code_chunks.__len__().__str__()
                 )
-                utils.override_lines_in_file(absolute_file_path, code_lines)
+                for reviewed_code_chunk in reviewed_code_chunks:
+                    reviewed_code = reviewed_code_chunk["reviewed_code"]
+                    original_code = reviewed_code_chunk["original_code"]
+                    # print("-------------- Reviewed Code --------------")
+                    # print(reviewed_code)
+                    utils.write_code_snippet_to_file(
+                        absolute_file_path, original_code, reviewed_code
+                    )
+
                 print(
                     "✅ Successfully applied review changes to "
                     f"{utils.get_bold_text(os.path.basename(absolute_file_path))}"
@@ -221,7 +290,7 @@ def request_review_changes(
 ):
     message_tokens = utils.count_tokens(
         json.dumps(
-            prompt.get_apply_review_for_git_diff_chunk_promp(
+            prompt.get_apply_review_for_treesitter_node_prompt(
                 code_chunk_with_suggestions["code"],
                 json.dumps(code_chunk_with_suggestions["suggestions"]),
                 gpt_model.value,
@@ -232,7 +301,7 @@ def request_review_changes(
     )
     return request.send_request(
         api_key,
-        prompt.get_apply_review_for_git_diff_chunk_promp(
+        prompt.get_apply_review_for_treesitter_node_prompt(
             code_chunk_with_suggestions["code"],
             json.dumps(code_chunk_with_suggestions["suggestions"]),
             gpt_model.value - message_tokens,
@@ -242,13 +311,3 @@ def request_review_changes(
         "🔧 Applying changes to "
         + f"{utils.get_bold_text(file_name)}... {current_step}/{total_steps}",
     )
-
-
-def add_reviewed_code(review_applied, reviewed_code):
-    if review_applied:
-        for (
-            improved_code_block
-        ) in formatter.extract_content_from_multiple_markdown_code_blocks(
-            review_applied
-        ):
-            reviewed_code.append("\n" + improved_code_block)

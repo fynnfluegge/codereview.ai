@@ -89,9 +89,9 @@ def format_git_diff(
                     chunk_formatted += line + "\n"
                     code_chunk_formatted += line + "\n"
                     # Extract selection marker
-                    parts = line.split("def", 1)
+                    parts = line.split("@@")
                     if len(parts) > 1:
-                        optional_selection_marker = parts[1].strip()
+                        optional_selection_marker = parts[2].strip()
                     else:
                         optional_selection_marker = ""
                     continue
@@ -226,27 +226,26 @@ def get_review_suggestions_per_file_payload_from_json(review_json):
 
 
 def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stack):
-    line_number = line_number_stack.pop()
+    line_number = line_number_stack[-1]
     hunk_review_payload = []
     for code_change_hunk in code_changes:
         review_per_chunk = {}
-        while (
-            code_change_hunk.start_line
-            <= line_number
-            < code_change_hunk.start_line + code_change_hunk.end_line
-        ):
+        while code_change_hunk.start_line <= line_number < code_change_hunk.end_line:
             review_per_chunk[line_number] = review_json[str(line_number)]
 
             if not line_number_stack:
                 break
-            line_number = line_number_stack.pop()
+            if line_number_stack[-1] < code_change_hunk.end_line:
+                line_number = line_number_stack.pop()
+            else:
+                line_number = line_number_stack[-1]
 
         if review_per_chunk:
             suggestions = {}
             for line in review_per_chunk:
                 suggestions[line] = review_per_chunk[line]["feedback"]
             hunk_review_payload.append(
-                {"code": code_change_hunk.code, "suggestions": suggestions}
+                {"code": code_change_hunk, "suggestions": suggestions}
             )
 
         if not line_number_stack:
