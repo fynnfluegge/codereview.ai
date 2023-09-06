@@ -226,7 +226,7 @@ def get_review_suggestions_per_file_payload_from_json(review_json):
 
 
 def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stack):
-    line_number = line_number_stack.pop()
+    line_number = line_number_stack[-1]
     hunk_review_payload = []
     for code_change_hunk in code_changes:
         review_per_chunk = {}
@@ -235,7 +235,10 @@ def parse_apply_review_per_code_hunk(code_changes, review_json, line_number_stac
 
             if not line_number_stack:
                 break
-            line_number = line_number_stack.pop()
+            if line_number_stack[-1] < code_change_hunk.end_line:
+                line_number = line_number_stack.pop()
+            else:
+                line_number = line_number_stack[-1]
 
         if review_per_chunk:
             suggestions = {}
